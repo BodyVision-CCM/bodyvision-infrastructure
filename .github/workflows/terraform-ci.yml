@@ -1,0 +1,74 @@
+name: Terraform CI
+
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  format:
+    name: Check Terraform formatting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.14.4"
+          terraform_wrapper: false
+
+      - name: Check formatting
+        working-directory: infra/terraform
+        run: terraform fmt -check -recursive
+
+  validate:
+    name: Validate ${{ matrix.root }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        root:
+          - bootstrap
+          - environments/dev
+          - environments/prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.14.4"
+          terraform_wrapper: false
+
+      - name: Initialize without remote backend
+        working-directory: infra/terraform/${{ matrix.root }}
+        run: terraform init -backend=false -input=false
+
+      - name: Validate configuration
+        working-directory: infra/terraform/${{ matrix.root }}
+        run: terraform validate -no-color
+

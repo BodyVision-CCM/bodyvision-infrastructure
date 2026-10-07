@@ -1,0 +1,4 @@
+project_id  = "bodyvision-509616"
+region      = "europe-west9"
+environment = "prod"
+
