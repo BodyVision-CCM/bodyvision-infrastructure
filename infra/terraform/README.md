@@ -8,9 +8,23 @@ Ce dossier contient le socle Terraform de BodyVision.
 - `modules` réserve un dossier par composant d'infrastructure.
 - `environments/dev` et `environments/prod` sont les modules racines des environnements.
 
-Dans le cadre de SCRUM-19, les modules `network`, `gke`, `iam` et
-`artifact_registry` sont uniquement initialisés. Leurs ressources seront ajoutées
-dans leurs tickets Jira respectifs.
+Le socle initial a été créé dans SCRUM-19. Les modules `network`, `iam` et `gke`
+sont désormais implémentés respectivement dans SCRUM-29, SCRUM-34 et SCRUM-33.
+Le module `artifact_registry` reste réservé à son prochain ticket Jira.
+
+## Infrastructure de développement
+
+L'environnement `dev` assemble :
+
+- un VPC personnalisé et un sous-réseau régional ;
+- des plages secondaires dédiées aux pods et services GKE ;
+- un Cloud Router et un Cloud NAT ;
+- des comptes de service dédiés suivant le principe du moindre privilège ;
+- Workload Identity sans clé JSON permanente ;
+- un cluster GKE régional avec des nœuds privés ;
+- un node pool multizone avec autoscaling ;
+- une protection contre la suppression configurable, désactivée en développement pour permettre les tests éphémères ;
+- un accès au control plane limité aux réseaux autorisés.
 
 ## État distant
 
