@@ -2,3 +2,24 @@ project_id  = "bodyvision-509616"
 region      = "europe-west9"
 environment = "dev"
 
+subnetwork_cidr         = "10.10.0.0/20"
+pods_secondary_cidr     = "10.20.0.0/16"
+services_secondary_cidr = "10.30.0.0/20"
+master_ipv4_cidr_block  = "172.16.0.0/28"
+
+node_locations = [
+  "europe-west9-a",
+  "europe-west9-b",
+  "europe-west9-c",
+]
+
+gke_machine_type   = "e2-standard-2"
+gke_min_node_count = 1
+gke_max_node_count = 3
+
+master_authorized_networks = [
+  {
+    cidr_block   = "203.0.113.10/32"
+    display_name = "administrateur-bodyvision"
+  },
+]
