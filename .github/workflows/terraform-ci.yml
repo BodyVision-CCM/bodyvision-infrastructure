@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - "infra/terraform/**"
+      - "infra/kubernetes/**"
       - ".github/workflows/terraform-ci.yml"
   push:
     branches:
       - main
     paths:
       - "infra/terraform/**"
+      - "infra/kubernetes/**"
       - ".github/workflows/terraform-ci.yml"
 
 permissions:
@@ -24,6 +26,22 @@ env:
   TF_INPUT: "false"
 
 jobs:
+  kubernetes:
+    name: Check Kubernetes manifests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.34.1"
+
+      - name: Build network policies without a cluster
+        run: kubectl kustomize infra/kubernetes/network-policies > "$RUNNER_TEMP/bodyvision-network-policies.yaml"
+
   format:
     name: Check Terraform formatting
     runs-on: ubuntu-latest
@@ -51,6 +69,7 @@ jobs:
       matrix:
         root:
           - bootstrap
+          - environments/persistent
           - environments/dev
           - environments/prod
 
@@ -66,9 +85,8 @@ jobs:
 
       - name: Initialize without remote backend
         working-directory: infra/terraform/${{ matrix.root }}
-        run: terraform init -backend=false -input=false
+        run: terraform init -backend=false -input=false -lockfile=readonly
 
       - name: Validate configuration
         working-directory: infra/terraform/${{ matrix.root }}
         run: terraform validate -no-color
-
