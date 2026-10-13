@@ -1,0 +1,6 @@
+project_id  = "bodyvision-509616"
+region      = "europe-west9"
+environment = "dev"
+
+# SCRUM-43 : identité de build explicite, aucune clé JSON.
+artifact_registry_writer_members = {}

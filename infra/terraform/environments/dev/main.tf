@@ -1,3 +1,22 @@
+data "terraform_remote_state" "persistent" {
+  backend = "gcs"
+  config = {
+    bucket = "${var.project_id}-bodyvision-tfstate"
+    prefix = "environments/persistent"
+  }
+
+  lifecycle {
+    postcondition {
+      condition = (
+        self.outputs.project_id == var.project_id &&
+        self.outputs.region == var.region &&
+        self.outputs.environment == var.environment
+      )
+      error_message = "Le state persistent doit correspondre au projet, à la région et à l'environnement dev."
+    }
+  }
+}
+
 module "network" {
   source = "../../modules/network"
 
@@ -20,8 +39,9 @@ module "network" {
 module "iam" {
   source = "../../modules/iam"
 
-  project_id  = var.project_id
-  environment = var.environment
+  project_id                      = var.project_id
+  environment                     = var.environment
+  gke_nodes_service_account_email = data.terraform_remote_state.persistent.outputs.gke_nodes_service_account_email
 }
 
 module "gke" {
@@ -41,7 +61,7 @@ module "gke" {
   master_ipv4_cidr_block = var.master_ipv4_cidr_block
   node_locations         = var.node_locations
 
-  node_service_account_email = module.iam.gke_nodes_service_account_email
+  node_service_account_email = data.terraform_remote_state.persistent.outputs.gke_nodes_service_account_email
 
   machine_type   = var.gke_machine_type
   disk_size_gb   = 50
@@ -51,6 +71,8 @@ module "gke" {
   master_authorized_networks = var.master_authorized_networks
 
   deletion_protection = false
+
+  depends_on = [module.iam]
 }
 
 resource "google_service_account_iam_member" "observability_workload_identity" {

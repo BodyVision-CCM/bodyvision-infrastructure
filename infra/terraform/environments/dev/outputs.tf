@@ -1,3 +1,18 @@
+output "artifact_registry_repository_name" {
+  description = "Nom complet du dépôt Docker de développement"
+  value       = data.terraform_remote_state.persistent.outputs.artifact_registry_repository_name
+}
+
+output "docker_registry_host" {
+  description = "Hôte Docker Artifact Registry"
+  value       = data.terraform_remote_state.persistent.outputs.docker_registry_host
+}
+
+output "docker_repository_url" {
+  description = "Préfixe des images Docker de développement"
+  value       = data.terraform_remote_state.persistent.outputs.docker_repository_url
+}
+
 output "network_name" {
   description = "Nom du VPC de développement"
   value       = module.network.network_name

@@ -1,6 +1,5 @@
 locals {
   gke_nodes_roles = toset([
-    "roles/artifactregistry.reader",
     "roles/logging.logWriter",
     "roles/monitoring.metricWriter",
     "roles/monitoring.viewer",
@@ -12,13 +11,6 @@ locals {
     "roles/logging.logWriter",
     "roles/monitoring.metricWriter",
   ])
-}
-
-resource "google_service_account" "gke_nodes" {
-  project      = var.project_id
-  account_id   = "bv-${var.environment}-gke-nodes"
-  display_name = "BodyVision ${var.environment} GKE nodes"
-  description  = "Compte de service utilisé par les nœuds du cluster GKE"
 }
 
 resource "google_service_account" "observability" {
@@ -33,7 +25,7 @@ resource "google_project_iam_member" "gke_nodes" {
 
   project = var.project_id
   role    = each.value
-  member  = "serviceAccount:${google_service_account.gke_nodes.email}"
+  member  = "serviceAccount:${var.gke_nodes_service_account_email}"
 }
 
 resource "google_project_iam_member" "observability" {

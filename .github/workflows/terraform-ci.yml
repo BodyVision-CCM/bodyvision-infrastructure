@@ -51,6 +51,7 @@ jobs:
       matrix:
         root:
           - bootstrap
+          - environments/persistent
           - environments/dev
           - environments/prod
 
@@ -66,9 +67,8 @@ jobs:
 
       - name: Initialize without remote backend
         working-directory: infra/terraform/${{ matrix.root }}
-        run: terraform init -backend=false -input=false
+        run: terraform init -backend=false -input=false -lockfile=readonly
 
       - name: Validate configuration
         working-directory: infra/terraform/${{ matrix.root }}
         run: terraform validate -no-color
-
