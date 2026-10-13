@@ -38,12 +38,12 @@ Le nom complet du dépôt et les deux sorties Docker sont aussi exposés par dev
 
 ## Utilisation après déploiement
 
-Initialiser le backend et relire le plan complet de dev avant tout apply : ce
-module racine assemble aussi réseau, IAM et GKE.
+Initialiser le backend et relire le plan complet de persistent avant tout apply.
+Après migration, le dépôt et le compte des nœuds sont indépendants de GKE.
 
 ```powershell
-terraform -chdir=infra/terraform/environments/dev init -backend-config=backend.hcl
-terraform -chdir=infra/terraform/environments/dev plan
+terraform -chdir=infra/terraform/environments/persistent init "-backend-config=backend.hcl"
+terraform -chdir=infra/terraform/environments/persistent plan
 ```
 
 Avec une identité explicitement autorisée à pousser des images et une session
@@ -59,20 +59,17 @@ docker pull europe-west9-docker.pkg.dev/bodyvision-509616/bodyvision-dev-docker/
 Remplacer <commit-sha> avant exécution. Les tags latest réutilisés sont
 incompatibles avec l'immuabilité. Le pipeline de build/push est hors périmètre.
 Aucune suppression automatique d'image n'est configurée ; le stockage est
-facturé selon l'utilisation. Un destroy de dev supprime également le dépôt et
-ses images : sauvegarder ce qui doit être conservé.
+facturé selon l'utilisation. Après la migration SCRUM-103, un destroy de dev
+conserve le dépôt et ses images. Le dépôt utilise `prevent_destroy` ; ne jamais
+détruire persistent pour arrêter GKE. Cette protection dépend du maintien du
+bloc dans la configuration et ne bloque pas une suppression manuelle GCP.
 
 ## Validation sans ressources GCP
 
-Avec Terraform >= 1.7 (la CI utilise 1.14.4) :
-
 ```powershell
-terraform -chdir=infra/terraform/environments/dev init -backend=false
-terraform -chdir=infra/terraform/environments/dev validate
-terraform -chdir=infra/terraform/environments/dev test
+terraform -chdir=infra/terraform/environments/persistent init -backend=false
+terraform -chdir=infra/terraform/environments/persistent validate
 ```
 
-Les tests utilisent exclusivement mock_provider google. Ils vérifient les
-paramètres Docker, les rôles limités au dépôt, le refus d'accès public et le
-branchement IAM/GKE de dev. Aucun appel GCP ni création réelle n'est effectué.
-Un test réel de push/pull reste nécessaire après un déploiement approuvé.
+Les variables refusent `allUsers` et `allAuthenticatedUsers`. Les rôles sont
+limités au dépôt. La CI ne crée aucune ressource GCP.
