@@ -1,6 +1,6 @@
 output "gke_nodes_service_account_email" {
   description = "Adresse du compte de service utilisé par les nœuds GKE"
-  value       = google_service_account.gke_nodes.email
+  value       = var.gke_nodes_service_account_email
 }
 
 output "observability_service_account_email" {

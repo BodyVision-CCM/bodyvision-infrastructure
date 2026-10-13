@@ -3,6 +3,11 @@ variable "project_id" {
   type        = string
 }
 
+variable "gke_nodes_service_account_email" {
+  description = "Compte des nœuds géré exclusivement par persistent"
+  type        = string
+}
+
 variable "environment" {
   description = "Nom de l'environnement"
   type        = string
