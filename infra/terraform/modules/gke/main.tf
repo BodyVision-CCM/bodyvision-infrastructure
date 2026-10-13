@@ -12,7 +12,8 @@ resource "google_container_cluster" "this" {
   initial_node_count       = 1
   deletion_protection      = var.deletion_protection
 
-  networking_mode = "VPC_NATIVE"
+  networking_mode   = "VPC_NATIVE"
+  datapath_provider = "ADVANCED_DATAPATH"
 
   ip_allocation_policy {
     cluster_secondary_range_name  = var.pods_secondary_range_name
@@ -40,6 +41,10 @@ resource "google_container_cluster" "this" {
 
   release_channel {
     channel = "REGULAR"
+  }
+
+  gateway_api_config {
+    channel = "CHANNEL_STANDARD"
   }
 
   logging_service    = "logging.googleapis.com/kubernetes"

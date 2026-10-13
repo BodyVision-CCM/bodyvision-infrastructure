@@ -23,6 +23,21 @@ variable "network_name" {
   type        = string
 }
 
+variable "master_ipv4_cidr_block" {
+  description = "Plage IPv4 du control plane autorisée à joindre les composants KEDA"
+  type        = string
+
+  validation {
+    condition     = can(cidrnetmask(var.master_ipv4_cidr_block)) && can(regex("/28$", var.master_ipv4_cidr_block))
+    error_message = "Le control plane GKE doit utiliser une plage IPv4 /28 valide."
+  }
+}
+
+variable "node_service_account_email" {
+  description = "Compte de service des nœuds GKE ciblés par le pare-feu du control plane"
+  type        = string
+}
+
 variable "subnetwork_name" {
   description = "Nom du sous-réseau principal"
   type        = string

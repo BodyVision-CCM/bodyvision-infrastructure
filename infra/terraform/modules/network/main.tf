@@ -76,3 +76,24 @@ resource "google_compute_firewall" "allow_internal" {
     metadata = "INCLUDE_ALL_METADATA"
   }
 }
+
+resource "google_compute_firewall" "allow_control_plane_keda" {
+  project = var.project_id
+  name    = "bodyvision-${var.environment}-control-plane-keda"
+  network = google_compute_network.this.name
+
+  direction = "INGRESS"
+  priority  = 1000
+
+  source_ranges           = [var.master_ipv4_cidr_block]
+  target_service_accounts = [var.node_service_account_email]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["6443", "9443"]
+  }
+
+  log_config {
+    metadata = "INCLUDE_ALL_METADATA"
+  }
+}

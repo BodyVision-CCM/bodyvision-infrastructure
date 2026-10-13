@@ -23,6 +23,17 @@ GKE reste Standard régional dans `europe-west9`, trois zones `a/b/c`, machines
 zone (3 à 9 au total). Les nœuds sont privés et utilisent Workload Identity.
 Tags Docker immuables, aucune politique de suppression d'images.
 
+Le cluster utilise Dataplane V2 et le canal standard de Gateway API. Le réseau
+autorise le control plane à joindre KEDA sur TCP 6443/9443, uniquement sur les
+nœuds GKE. L'installation Helm de KEDA reste dans SCRUM-102.
+
+Les [Network Policies](../kubernetes/network-policies/README.md) refusent les
+entrées et sorties par défaut et autorisent les flux BodyVision explicitement.
+Elles doivent être déployées avant les workloads ; leur ajout au dépôt ne les
+applique pas automatiquement. Les décisions Gateway API/Cloud SQL et les
+corrections du diagramme sont consignées dans la
+[review SCRUM-25](../../docs/reviews/SCRUM-25.md).
+
 ## Migration d'un state dev existant
 
 Ne pas appliquer la configuration séparée sur l'ancien state. Transférer exactement :
@@ -75,8 +86,9 @@ Références : [transfert de states](https://developer.hashicorp.com/terraform/l
 [protocole GCS Terraform](https://github.com/hashicorp/terraform/blob/v1.14.3/internal/backend/remote-state/gcs/client.go).
 
 Après migration, utiliser uniquement cette configuration pour ces backends.
-Fusion recommandée : PR #2, puis PR #3, puis la PR de séparation ; adapter les
-bases vers `main` et relancer la CI. Ne pas appliquer les anciennes branches.
+Les PR #4 et #3 ont déjà été intégrées à la branche consolidée de la PR #2.
+Seule la PR #2 attend la revue et la fusion vers `main`. Synchroniser le checkout
+avec cette configuration avant toute opération ; ne pas appliquer les anciennes branches.
 
 ## Créer et détruire uniquement l'infrastructure éphémère
 
@@ -113,6 +125,7 @@ GCS et leurs opérations restent potentiellement facturés selon l'usage.
 
 La CI vérifie le formatage et valide les quatre racines sans accès GCP, avec
 Terraform 1.14.4 et Google 8.2.0 verrouillé. Aucun test ni script auxiliaire versionné.
+Elle construit également les Network Policies avec Kustomize sans contacter un cluster.
 
 ```powershell
 terraform fmt -check -recursive

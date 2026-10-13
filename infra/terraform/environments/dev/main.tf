@@ -29,6 +29,9 @@ module "network" {
 
   subnetwork_cidr = var.subnetwork_cidr
 
+  master_ipv4_cidr_block     = var.master_ipv4_cidr_block
+  node_service_account_email = data.terraform_remote_state.persistent.outputs.gke_nodes_service_account_email
+
   pods_secondary_range_name = "bodyvision-${var.environment}-pods"
   pods_secondary_cidr       = var.pods_secondary_cidr
 
