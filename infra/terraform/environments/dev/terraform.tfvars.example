@@ -2,6 +2,9 @@ project_id  = "bodyvision-509616"
 region      = "europe-west9"
 environment = "dev"
 
+# À renseigner avec l'identité de build lors de SCRUM-43 ; aucune clé JSON.
+artifact_registry_writer_members = {}
+
 subnetwork_cidr         = "10.10.0.0/20"
 pods_secondary_cidr     = "10.20.0.0/16"
 services_secondary_cidr = "10.30.0.0/20"

@@ -1,6 +1,5 @@
 locals {
   gke_nodes_roles = toset([
-    "roles/artifactregistry.reader",
     "roles/logging.logWriter",
     "roles/monitoring.metricWriter",
     "roles/monitoring.viewer",

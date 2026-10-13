@@ -72,3 +72,8 @@ jobs:
         working-directory: infra/terraform/${{ matrix.root }}
         run: terraform validate -no-color
 
+      - name: Test Artifact Registry with mocked GCP provider
+        if: matrix.root == 'environments/dev'
+        working-directory: infra/terraform/environments/dev
+        run: terraform test -no-color
+

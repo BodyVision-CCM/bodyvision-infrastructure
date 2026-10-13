@@ -20,6 +20,12 @@ variable "environment" {
   }
 }
 
+variable "artifact_registry_writer_members" {
+  description = "Identités explicites autorisées à pousser des images dans le dépôt de développement"
+  type        = map(string)
+  default     = {}
+}
+
 variable "subnetwork_cidr" {
   description = "Plage IPv4 principale du sous-réseau"
   type        = string

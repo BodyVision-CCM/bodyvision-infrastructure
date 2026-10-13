@@ -10,6 +10,9 @@ Il crée :
 
 Le module ne crée aucune clé JSON permanente.
 
+La lecture des images Docker est accordée par le module `artifact_registry`,
+au niveau du dépôt uniquement, et non au niveau du projet (SCRUM-39).
+
 La liaison Workload Identity est créée par le module racine de l’environnement,
 après la création du cluster GKE. Cette dépendance garantit que le Workload
 Identity Pool existe avant l’association IAM.

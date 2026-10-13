@@ -10,7 +10,7 @@ Ce dossier contient le socle Terraform de BodyVision.
 
 Le socle initial a été créé dans SCRUM-19. Les modules `network`, `iam` et `gke`
 sont désormais implémentés respectivement dans SCRUM-29, SCRUM-34 et SCRUM-33.
-Le module `artifact_registry` reste réservé à son prochain ticket Jira.
+Le module `artifact_registry` est implémenté dans SCRUM-39.
 
 ## Infrastructure de développement
 
@@ -24,7 +24,8 @@ L'environnement `dev` assemble :
 - un cluster GKE régional avec des nœuds privés ;
 - un node pool multizone avec autoscaling ;
 - une protection contre la suppression configurable, désactivée en développement pour permettre les tests éphémères ;
-- un accès au control plane limité aux réseaux autorisés.
+- un accès au control plane limité aux réseaux autorisés ;
+- un dépôt Docker Artifact Registry privé avec tags immuables et accès des nœuds GKE limité au dépôt.
 
 ## État distant
 
@@ -45,7 +46,10 @@ initialise chaque module racine sans se connecter au backend distant, puis valid
 les configurations `bootstrap`, `dev` et `prod`.
 
 Cette CI ne possède aucun secret GCP et n'exécute ni `terraform plan` ni
-`terraform apply`.
+`terraform apply` contre GCP. Elle exécute également les tests Artifact Registry
+avec un fournisseur Google simulé (plans et applications en mémoire, sans
+ressources cloud). Voir le [module Artifact Registry](modules/artifact_registry/README.md)
+pour l'authentification Docker et les commandes push/pull après déploiement.
 
 ## Validation
 
