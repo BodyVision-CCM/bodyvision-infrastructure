@@ -1,2 +1,54 @@
-# Les sorties de l'environnement dev seront ajoutées avec les futurs modules.
+output "artifact_registry_repository_name" {
+  description = "Nom complet du dépôt Docker de développement"
+  value       = data.terraform_remote_state.persistent.outputs.artifact_registry_repository_name
+}
 
+output "docker_registry_host" {
+  description = "Hôte Docker Artifact Registry"
+  value       = data.terraform_remote_state.persistent.outputs.docker_registry_host
+}
+
+output "docker_repository_url" {
+  description = "Préfixe des images Docker de développement"
+  value       = data.terraform_remote_state.persistent.outputs.docker_repository_url
+}
+
+output "network_name" {
+  description = "Nom du VPC de développement"
+  value       = module.network.network_name
+}
+
+output "subnetwork_name" {
+  description = "Nom du sous-réseau de développement"
+  value       = module.network.subnetwork_name
+}
+
+output "nat_name" {
+  description = "Nom du Cloud NAT"
+  value       = module.network.nat_name
+}
+
+output "gke_nodes_service_account_email" {
+  description = "Compte de service des nœuds GKE"
+  value       = module.iam.gke_nodes_service_account_email
+}
+
+output "observability_service_account_email" {
+  description = "Compte de service du workload d'observabilité"
+  value       = module.iam.observability_service_account_email
+}
+
+output "cluster_name" {
+  description = "Nom du cluster GKE"
+  value       = module.gke.cluster_name
+}
+
+output "cluster_location" {
+  description = "Région du cluster GKE"
+  value       = module.gke.cluster_location
+}
+
+output "workload_identity_pool" {
+  description = "Pool Workload Identity"
+  value       = module.gke.workload_identity_pool
+}
