@@ -4,49 +4,60 @@ Le ticket demande trois images pour quatre déploiements : Utilisateurs,
 Ingestion, et une image Analytique commune à l'API et au worker. Les Deployments
 eux-mêmes appartiennent à SCRUM-48.
 
-## Partie disponible : Utilisateurs
+## Une seule PR dans Infrastructure
 
-Le dépôt Utilisateurs possède son Dockerfile Python 3.12/FastAPI, avec une cible
-`runtime` sans outils de test. Son workflow Trivy est prolongé pour transférer
-l'image scannée à un job de publication après un push sur `main`.
+Le workflow `Images Docker (SCRUM-43)` récupère `main` du dépôt public
+`BodyVision-CCM/bodyvision-user-service`. Il construit sa cible Docker `runtime`
+Python 3.12/FastAPI et bloque les vulnérabilités critiques avec Trivy.
+Il transmet cette même image au job de publication, sans la reconstruire.
 
-Ce job publie `user-service:<SHA complet>` dans `bodyvision-dev-docker`, relit
-le digest, contrôle les labels OCI et scanne le digest effectivement publié.
-Les tags immuables sont réutilisés lors d'une relance, jamais écrasés. Les PR
-construisent/scannent seulement ; elles ne s'authentifient pas à GCP.
-La CI lint/tests applicatifs SCRUM-42 reste à Brice.
+Après intégration, lancer le workflow dans Actions sur la branche `main`
+d'Infrastructure pour publier la dernière version Utilisateurs. Un changement
+du fichier du workflow sur `main` le déclenche également. Un push dans le dépôt
+Utilisateurs seul ne déclenche pas ce workflow centralisé. Aucun changement
+dans ce dépôt n'est nécessaire et la CI applicative SCRUM-42 reste à Brice.
+
+L'image `user-service:<SHA applicatif complet>` est publiée dans
+`europe-west9-docker.pkg.dev/bodyvision-509616/bodyvision-dev-docker`.
+Le résumé du run contient les SHA applicatif et Infrastructure, le tag et le
+digest. Les labels OCI sont vérifiés et Trivy scanne le digest réellement
+présent au registre. Une relance réutilise le tag immuable existant et le
+rescanne ; elle ne remplace pas l'image avec une reconstruction différente.
+Les PR construisent et scannent sans accès GCP.
 
 ## Identité de build
 
-La branche Infrastructure de SCRUM-43 part de la branche SCRUM-108 (PR #6,
-encore en brouillon au démarrage). Intégrer SCRUM-108 avant cette modification.
+Cette branche dépend de SCRUM-108 (PR #6). Intégrer SCRUM-108 avant cette PR.
 
 Quatre ressources supplémentaires dans le state `persistent` :
 
 - Fournisseur OIDC `user-service` dans le pool GitHub de SCRUM-108.
 - Compte `bv-dev-users-build`, distinct du compte de déploiement Infrastructure.
-- Liaison Workload Identity User limitée à l'ID GitHub Utilisateurs `1362930912`.
+- Liaison Workload Identity User pour l'ID Infrastructure `1362922361`.
 - Writer Artifact Registry au niveau de `bodyvision-dev-docker` seulement.
 
-L'ID de l'organisation est vérifié et seules les refs explicitement autorisées
-par `users_build_allowed_refs` sont acceptées, sur l'événement `push`.
-La valeur par défaut est `refs/heads/main`. Aucun droit GKE ou IAM d'administration,
-aucune clé de compte de service, aucune création de cluster ou de registre.
+Le fournisseur vérifie l'ID organisation `327074116`, l'ID Infrastructure,
+les refs explicites de `users_build_allowed_refs` et les événements `push` ou
+`workflow_dispatch`. La valeur par défaut est `refs/heads/main`.
+Son attribut `build_repository_id` est distinct de `repository_id`, utilisé
+par SCRUM-108 : aucun des deux fournisseurs ne peut impersonner le compte
+de l'autre. Le compte de build n'a aucun droit GKE ou IAM d'administration.
+Aucune clé permanente, aucun cluster ni registre supplémentaire.
 
-Outputs publics à comparer aux valeurs du workflow Utilisateurs :
-`users_build_workload_identity_provider`, `users_build_service_account_email`
-et `docker_repository_url`. Les credentials OIDC temporaires sont exclus de Git
-et du contexte Docker.
+Outputs publics : `users_build_workload_identity_provider`,
+`users_build_service_account_email` et `docker_repository_url`.
+Les credentials temporaires sont créés uniquement dans le job de publication,
+après le build et le transfert de l'image.
 
-## Validation à effectuer
+## Validation
 
-Relire puis appliquer un plan complet `persistent`, limité aux quatre créations.
-Le test de publication peut être fait sans allumer GKE. Pour une preuve sur une
-branche de test, autoriser temporairement sa ref dans le fournisseur et dans
-les conditions de publication du workflow, puis rétablir `main` uniquement.
+La preuve utilise temporairement la ref explicite
+`refs/heads/codex/scrum-43-build-push` dans le fournisseur et le workflow.
+Retirer cette ref après le push/pull et les scans, puis vérifier un plan
+persistent sans changement. Aucun GKE n'est nécessaire.
 
-Conserver le lien du run, le SHA et le digest ; vérifier l'absence de clé
-utilisateur sur le compte et un plan persistent final sans changement.
+Les huit tests Terraform simulés contrôlent notamment l'isolation des comptes,
+les permissions et le rejet des refs PR ou contenant un joker.
 
 ## Périmètre restant
 
@@ -55,29 +66,9 @@ dépôt Ingestion n'existe pas dans l'organisation. Il n'y a donc aucun Dockerfi
 ou point d'entrée à construire pour ces services. SCRUM-43 reste partiel tant
 que ces deux images n'ont pas été construites, scannées et publiées.
 
-Ne pas créer d'images factices pour les compter comme livrées. Lorsque les
-sources seront disponibles, reprendre le même principe : une identité de build
-par dépôt, une image Go pour Ingestion, une image Python commune API/worker
-pour Analytique. Les commandes distinctes de l'API et du worker doivent être
+Lorsque leurs sources seront disponibles, étendre ce pipeline central avec
+une image Go pour Ingestion et une image Python commune API/worker pour
+Analytique. Les commandes distinctes de l'API et du worker doivent être
 définies par leurs sources avant de documenter leur lancement.
-
-## Préparation du 4 novembre 2026
-
-- Branche Infrastructure : `codex/scrum-43-users-registry`, basée sur SCRUM-108.
-- Branche Utilisateurs : `codex/scrum-43-build-push` ; publication limitée aux
-  pushes `main`, build/scan également exécutés sur la branche de préparation.
-- Huit tests Terraform simulés réussis, dont quatre sur l'identité Utilisateurs.
-- Actionlint, syntaxe Bash et vérifications de séparation des permissions
-  réussis ; le build ne dispose pas de `id-token: write`.
-- Plan complet persistent : 4 créations, 0 modification, 0 destruction.
-  Aucun apply effectué pour SCRUM-43 ; la preuve de publication reste à faire.
-- Aucun changement au code applicatif, aux fixtures ou à la CI lint/tests
-  SCRUM-42 réservée à Brice. Aucun cluster à allumer pour cette preuve.
-- [Build runtime et scan Trivy verts](https://github.com/BodyVision-CCM/bodyvision-user-service/actions/runs/41902520621)
-  sur `b36f9c7e0f5daa57ba234c0ded7d81eba719f9e4`. Publication ignorée sur
-  cette branche de préparation : aucun accès GCP utilisé.
-- Pour la preuve réelle, le plan local autorise temporairement
-  `refs/heads/codex/scrum-43-build-push` en plus de `refs/heads/main` pour le
-  seul fournisseur Utilisateurs ; cette autorisation sera retirée après le test.
 
 Référence : https://bodyvision.atlassian.net/browse/SCRUM-43

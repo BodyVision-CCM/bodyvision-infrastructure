@@ -47,17 +47,19 @@ run "users_build_isolated_identity" {
   assert {
     condition = google_iam_workload_identity_pool_provider.users_build.attribute_condition == join(" && ", [
       "assertion.repository_owner_id == '327074116'",
-      "assertion.repository_id == '1362930912'",
+      "assertion.repository_id == '1362922361'",
       "assertion.ref in [\"refs/heads/main\"]",
-      "assertion.event_name == 'push'",
+      "assertion.event_name in ['push', 'workflow_dispatch']",
     ])
-    error_message = "Seul un push main du dépôt Utilisateurs doit être accepté."
+    error_message = "Seul un push ou lancement manuel main du dépôt Infrastructure doit être accepté."
   }
 
   assert {
     condition = (
-      google_service_account_iam_member.users_build.member == "principalSet://iam.googleapis.com/projects/669761732802/locations/global/workloadIdentityPools/bodyvision-dev-github/attribute.repository_id/1362930912" &&
+      google_service_account_iam_member.users_build.member == "principalSet://iam.googleapis.com/projects/669761732802/locations/global/workloadIdentityPools/bodyvision-dev-github/attribute.build_repository_id/1362922361" &&
       google_service_account_iam_member.users_build.role == "roles/iam.workloadIdentityUser" &&
+      !contains(keys(google_iam_workload_identity_pool_provider.users_build.attribute_mapping), "attribute.repository_id") &&
+      !contains(keys(google_iam_workload_identity_pool_provider.github.attribute_mapping), "attribute.build_repository_id") &&
       module.artifact_registry.writer_members["users_build"] == "serviceAccount:${google_service_account.users_build.email}" &&
       google_project_iam_member.github_gke_reader.member != "serviceAccount:${google_service_account.users_build.email}"
     )

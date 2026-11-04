@@ -4,16 +4,16 @@ resource "google_iam_workload_identity_pool_provider" "users_build" {
   workload_identity_pool_provider_id = "user-service"
 
   attribute_mapping = {
-    "google.subject"          = "assertion.sub"
-    "attribute.repository_id" = "assertion.repository_id"
+    "google.subject"                = "assertion.sub"
+    "attribute.build_repository_id" = "assertion.repository_id"
   }
 
-  # This provider cannot impersonate the Infrastructure deployment account.
+  # A distinct attribute prevents impersonating the Infrastructure deployment account.
   attribute_condition = join(" && ", [
     "assertion.repository_owner_id == '${local.github_owner_id}'",
-    "assertion.repository_id == '1362930912'",
+    "assertion.repository_id == '${local.github_repository_id}'",
     "assertion.ref in ${jsonencode(sort(tolist(var.users_build_allowed_refs)))}",
-    "assertion.event_name == 'push'",
+    "assertion.event_name in ['push', 'workflow_dispatch']",
   ])
 
   oidc {
@@ -34,5 +34,5 @@ resource "google_service_account" "users_build" {
 resource "google_service_account_iam_member" "users_build" {
   service_account_id = google_service_account.users_build.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}/attribute.repository_id/1362930912"
+  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}/attribute.build_repository_id/${local.github_repository_id}"
 }

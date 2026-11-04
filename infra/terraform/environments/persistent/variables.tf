@@ -40,7 +40,7 @@ variable "github_actions_allowed_refs" {
 }
 
 variable "users_build_allowed_refs" {
-  description = "Branches explicites de bodyvision-user-service autorisées à publier des images"
+  description = "Branches Infrastructure explicites autorisées à construire et publier l'image Utilisateurs"
   type        = set(string)
   default     = ["refs/heads/main"]
 
