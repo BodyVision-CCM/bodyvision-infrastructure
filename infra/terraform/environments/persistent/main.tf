@@ -17,5 +17,6 @@ module "artifact_registry" {
   reader_members = { gke_nodes = "serviceAccount:${module.iam.gke_nodes_service_account_email}" }
   writer_members = merge(var.artifact_registry_writer_members, {
     github_actions = "serviceAccount:${google_service_account.github_deploy.email}"
+    users_build    = "serviceAccount:${google_service_account.users_build.email}"
   })
 }
