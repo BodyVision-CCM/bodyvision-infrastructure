@@ -38,3 +38,16 @@ variable "github_actions_allowed_refs" {
     error_message = "Autoriser au moins une branche explicite refs/heads/... ; les tags, jokers et refs de PR sont interdits."
   }
 }
+
+variable "users_build_allowed_refs" {
+  description = "Branches explicites de bodyvision-user-service autorisées à publier des images"
+  type        = set(string)
+  default     = ["refs/heads/main"]
+
+  validation {
+    condition = length(var.users_build_allowed_refs) > 0 && alltrue([
+      for ref in var.users_build_allowed_refs : can(regex("^refs/heads/[A-Za-z0-9][A-Za-z0-9._/-]*$", ref))
+    ])
+    error_message = "Autoriser au moins une branche refs/heads/... explicite, sans tag, joker ou ref de PR."
+  }
+}

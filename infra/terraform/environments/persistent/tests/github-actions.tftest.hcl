@@ -27,9 +27,71 @@ override_resource {
   }
 }
 
+override_resource {
+  target = google_service_account.users_build
+  values = {
+    email = "bv-dev-users-build@bodyvision-509616.iam.gserviceaccount.com"
+    name  = "projects/bodyvision-509616/serviceAccounts/bv-dev-users-build@bodyvision-509616.iam.gserviceaccount.com"
+  }
+}
+
 variables {
   project_id                  = "bodyvision-509616"
   github_actions_allowed_refs = ["refs/heads/main"]
+  users_build_allowed_refs    = ["refs/heads/main"]
+}
+
+run "users_build_isolated_identity" {
+  command = apply
+
+  assert {
+    condition = google_iam_workload_identity_pool_provider.users_build.attribute_condition == join(" && ", [
+      "assertion.repository_owner_id == '327074116'",
+      "assertion.repository_id == '1362930912'",
+      "assertion.ref in [\"refs/heads/main\"]",
+      "assertion.event_name == 'push'",
+    ])
+    error_message = "Seul un push main du dépôt Utilisateurs doit être accepté."
+  }
+
+  assert {
+    condition = (
+      google_service_account_iam_member.users_build.member == "principalSet://iam.googleapis.com/projects/669761732802/locations/global/workloadIdentityPools/bodyvision-dev-github/attribute.repository_id/1362930912" &&
+      google_service_account_iam_member.users_build.role == "roles/iam.workloadIdentityUser" &&
+      module.artifact_registry.writer_members["users_build"] == "serviceAccount:${google_service_account.users_build.email}" &&
+      google_project_iam_member.github_gke_reader.member != "serviceAccount:${google_service_account.users_build.email}"
+    )
+    error_message = "Le compte Utilisateurs doit publier au registre sans prendre l'identité ou les droits GKE d'Infrastructure."
+  }
+}
+
+run "users_explicit_test_branch" {
+  command = plan
+
+  variables {
+    users_build_allowed_refs = ["refs/heads/main", "refs/heads/codex/scrum-43-build-push"]
+  }
+
+  assert {
+    condition     = strcontains(google_iam_workload_identity_pool_provider.users_build.attribute_condition, "assertion.ref in [\"refs/heads/codex/scrum-43-build-push\",\"refs/heads/main\"]")
+    error_message = "La branche de preuve Utilisateurs doit être autorisée explicitement."
+  }
+}
+
+run "users_reject_wildcard" {
+  command = plan
+  variables {
+    users_build_allowed_refs = ["refs/heads/*"]
+  }
+  expect_failures = [var.users_build_allowed_refs]
+}
+
+run "users_reject_pull_request_ref" {
+  command = plan
+  variables {
+    users_build_allowed_refs = ["refs/pull/1/merge"]
+  }
+  expect_failures = [var.users_build_allowed_refs]
 }
 
 run "main_only_and_least_privilege" {
