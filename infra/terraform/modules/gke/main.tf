@@ -72,6 +72,9 @@ resource "google_container_node_pool" "primary" {
 
   node_locations = var.node_locations
 
+  # Without an initial size, GKE can create an empty autoscaled pool.
+  initial_node_count = var.min_node_count
+
   autoscaling {
     min_node_count = var.min_node_count
     max_node_count = var.max_node_count

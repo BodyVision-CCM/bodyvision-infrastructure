@@ -88,7 +88,12 @@ jobs:
           set -euo pipefail
           server="$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')"
           [[ "$server" == https://*.gke.goog ]]
+          nodes="$(kubectl get nodes -o name --request-timeout=60s)"
+          [[ -n "$nodes" ]]
+          kubectl wait --for=condition=Ready nodes --all --timeout=180s
           kubectl get nodes --request-timeout=60s
-          [[ "$(kubectl auth can-i create deployments -n bodyvision || true)" == no ]]
+          decision="$(kubectl auth can-i create deployments -n bodyvision || true)"
+          printf 'Création de Deployment : %s\n' "$decision"
+          [[ "$decision" == no || "$decision" == 'no - '* ]]
           printf '\n### GKE\n\nEndpoint DNS : `%s`\n\nLecture des nœuds réussie ; création de Deployment refusée.\n' \
             "$server" >> "$GITHUB_STEP_SUMMARY"
