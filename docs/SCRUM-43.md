@@ -51,10 +51,19 @@ après le build et le transfert de l'image.
 
 ## Validation
 
-La preuve utilise temporairement la ref explicite
-`refs/heads/codex/scrum-43-build-push` dans le fournisseur et le workflow.
-Retirer cette ref après le push/pull et les scans, puis vérifier un plan
-persistent sans changement. Aucun GKE n'est nécessaire.
+La [preuve réelle du 4 novembre 2026](https://github.com/BodyVision-CCM/bodyvision-infrastructure/actions/runs/41904370177)
+est verte : build runtime, scan local, transfert sans reconstruction,
+authentification OIDC, push, pull par digest, vérification OCI et scan du digest.
+
+- Sources Utilisateurs : `38008c97be67eefbe3c548d06a29ffc992e518f9`.
+- Pipeline Infrastructure : `dc7d8071d96a82d499c06fb1c513e46f1d9baf5a`.
+- Digest : `sha256:f4dc907740ad0ec1f6e07c7cba50d9b47c08ef8e0b89b6bf02eb32636e85b351`.
+
+La ref de preuve `refs/heads/codex/scrum-43-build-push` a ensuite été retirée
+du fournisseur et du workflow : seule `main` reste autorisée. Les quatre
+ressources sont appliquées ; aucun cluster GKE n'a été créé et le compte
+de build n'a aucune clé utilisateur.
+Le plan `persistent` final est sans changement (code de sortie 0).
 
 Les huit tests Terraform simulés contrôlent notamment l'isolation des comptes,
 les permissions et le rejet des refs PR ou contenant un joker.
