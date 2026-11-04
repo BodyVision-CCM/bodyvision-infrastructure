@@ -73,5 +73,11 @@ définies par leurs sources avant de documenter leur lancement.
   Aucun apply effectué pour SCRUM-43 ; la preuve de publication reste à faire.
 - Aucun changement au code applicatif, aux fixtures ou à la CI lint/tests
   SCRUM-42 réservée à Brice. Aucun cluster à allumer pour cette preuve.
+- [Build runtime et scan Trivy verts](https://github.com/BodyVision-CCM/bodyvision-user-service/actions/runs/41902520621)
+  sur `b36f9c7e0f5daa57ba234c0ded7d81eba719f9e4`. Publication ignorée sur
+  cette branche de préparation : aucun accès GCP utilisé.
+- Pour la preuve réelle, le plan local autorise temporairement
+  `refs/heads/codex/scrum-43-build-push` en plus de `refs/heads/main` pour le
+  seul fournisseur Utilisateurs ; cette autorisation sera retirée après le test.
 
 Référence : https://bodyvision.atlassian.net/browse/SCRUM-43
