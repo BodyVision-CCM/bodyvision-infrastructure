@@ -25,3 +25,12 @@ output "docker_registry_host" {
 output "docker_repository_url" {
   value = module.artifact_registry.docker_repository_url
 }
+
+output "github_workload_identity_provider" {
+  description = "Identifiant public du fournisseur OIDC GitHub"
+  value       = google_iam_workload_identity_pool_provider.github.name
+}
+
+output "github_deploy_service_account_email" {
+  value = google_service_account.github_deploy.email
+}

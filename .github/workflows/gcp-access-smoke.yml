@@ -1,0 +1,99 @@
+name: GCP access smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      check_gke:
+        description: "Vérifier GKE (allumer dev avant, puis le détruire après la session)"
+        type: boolean
+        default: true
+  push:
+    branches: [codex/scrum-108-github-gcp]
+    paths: [.github/workflows/gcp-access-smoke.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gcp-access-smoke
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: bodyvision-509616
+  GCP_REGION: europe-west9
+  REGISTRY: europe-west9-docker.pkg.dev
+  REPOSITORY: europe-west9-docker.pkg.dev/bodyvision-509616/bodyvision-dev-docker
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Authentifier GitHub par OIDC sans clé de compte de service
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: projects/669761732802/locations/global/workloadIdentityPools/bodyvision-dev-github/providers/github
+          service_account: bv-dev-github-deploy@bodyvision-509616.iam.gserviceaccount.com
+
+      - name: Installer gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          install_components: kubectl
+
+      - name: Pousser et relire une image taguée par SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="$REPOSITORY/scrum108-smoke:$GITHUB_SHA"
+          gcloud auth configure-docker "$REGISTRY" --quiet
+          # Un contexte temporaire ne peut pas embarquer les credentials du checkout.
+          context="$(mktemp -d)"
+          printf '%s\n' "$GITHUB_SHA" > "$context/commit.txt"
+          printf 'FROM scratch\nCOPY commit.txt /commit.txt\n' > "$context/Dockerfile"
+          docker build --tag "$image" "$context"
+          # Les tags sont immuables : une relance réutilise le tag existant.
+          tags="$(gcloud artifacts docker images list "$REPOSITORY" --include-tags \
+            --filter="package=$REPOSITORY/scrum108-smoke" --flatten=tags --format='value(tags)')"
+          if ! grep -Fxq "$GITHUB_SHA" <<< "$tags"; then
+            docker push "$image"
+          fi
+          digest="$(gcloud artifacts docker images describe "$image" --format='value(image_summary.digest)')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          docker pull "$REPOSITORY/scrum108-smoke@$digest"
+          printf '### Registre\n\n- Commit : `%s`\n- Image : `%s`\n- Digest : `%s`\n' \
+            "$GITHUB_SHA" "$image" "$digest" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Obtenir le kubeconfig via l’endpoint DNS
+        if: github.event_name == 'push' || inputs.check_gke
+        uses: google-github-actions/get-gke-credentials@3da1e46a907576cefaa90c484278bb5b259dd395 # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          cluster_name: bodyvision-dev-gke
+          location: ${{ env.GCP_REGION }}
+          use_dns_based_endpoint: true
+
+      - name: Vérifier l’accès aux nœuds sans droits de déploiement
+        if: github.event_name == 'push' || inputs.check_gke
+        shell: bash
+        run: |
+          set -euo pipefail
+          server="$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')"
+          [[ "$server" == https://*.gke.goog ]]
+          nodes="$(kubectl get nodes -o name --request-timeout=60s)"
+          [[ -n "$nodes" ]]
+          kubectl wait --for=condition=Ready nodes --all --timeout=180s
+          kubectl get nodes --request-timeout=60s
+          decision="$(kubectl auth can-i create deployments -n bodyvision || true)"
+          printf 'Création de Deployment : %s\n' "$decision"
+          [[ "$decision" == no || "$decision" == 'no - '* ]]
+          printf '\n### GKE\n\nEndpoint DNS : `%s`\n\nLecture des nœuds réussie ; création de Deployment refusée.\n' \
+            "$server" >> "$GITHUB_STEP_SUMMARY"
