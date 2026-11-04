@@ -1,8 +1,10 @@
-# SCRUM-43 — build et publication des images
+# SCRUM-43 — build et publication de l'image Utilisateurs
 
-Le ticket demande trois images pour quatre déploiements : Utilisateurs,
-Ingestion, et une image Analytique commune à l'API et au worker. Les Deployments
-eux-mêmes appartiennent à SCRUM-48.
+Après découpage du 4 novembre 2026, SCRUM-43 couvre le pipeline et la publication
+de l'image Utilisateurs. Cette livraison est en revue. Les images Ingestion et
+Analytique sont conservées dans SCRUM-114 et SCRUM-115, sans modifier l'objectif
+d'architecture de trois images pour quatre déploiements. Les Deployments
+Kubernetes sont suivis par SCRUM-48.
 
 ## Une seule PR dans Infrastructure
 
@@ -68,16 +70,33 @@ Le plan `persistent` final est sans changement (code de sortie 0).
 Les huit tests Terraform simulés contrôlent notamment l'isolation des comptes,
 les permissions et le rejet des refs PR ou contenant un joker.
 
-## Périmètre restant
+## Extensions suivies séparément
 
-Au démarrage du 4 novembre 2026, `bodyvision-analytics-service` est vide et le
-dépôt Ingestion n'existe pas dans l'organisation. Il n'y a donc aucun Dockerfile
-ou point d'entrée à construire pour ces services. SCRUM-43 reste partiel tant
-que ces deux images n'ont pas été construites, scannées et publiées.
+Les deux tâches CI/CD suivantes restent dans l'epic SCRUM-7, assignées à Raphaël,
+hors sprint en attendant la disponibilité des sources backend :
+
+- [SCRUM-114 — image Ingestion](https://bodyvision.atlassian.net/browse/SCRUM-114) :
+  dépend de la disponibilité des sources de SCRUM-51 (Brice) et du socle SCRUM-43.
+- [SCRUM-115 — image commune Analytique API/worker](https://bodyvision.atlassian.net/browse/SCRUM-115) :
+  dépend des sources et points d'entrée de SCRUM-57/SCRUM-77 (Brice) et du socle
+  SCRUM-43.
+
+Au moment du découpage, `bodyvision-analytics-service` est vide. Le
+[README de l'organisation](https://github.com/BodyVision-CCM/.github/blob/main/profile/README.md#les-dépôts)
+prévoit l'ouverture du dépôt Ingestion au début de son développement. La création
+administrative de ce dépôt reste à préciser en équipe ; elle ne constitue pas
+un travail de développement métier inclus dans SCRUM-43.
 
 Lorsque leurs sources seront disponibles, étendre ce pipeline central avec
 une image Go pour Ingestion et une image Python commune API/worker pour
 Analytique. Les commandes distinctes de l'API et du worker doivent être
-définies par leurs sources avant de documenter leur lancement.
+définies par leurs sources avant de documenter leur lancement. Des squelettes
+exécutables suffisent pour commencer l'intégration, sans attendre toutes les
+fonctionnalités métier.
+
+La revue et la validation de SCRUM-43 portent sur Utilisateurs et peuvent avancer
+indépendamment de ces extensions. Il reste à valider et intégrer la PR #6 de
+SCRUM-108, puis à recibler et intégrer la PR #7 ; la dépendance exprime cet ordre
+d'intégration.
 
 Référence : https://bodyvision.atlassian.net/browse/SCRUM-43
