@@ -19,6 +19,14 @@ mock_provider "google" {
   }
 }
 
+override_resource {
+  target = google_service_account.github_deploy
+  values = {
+    email = "bv-dev-github-deploy@bodyvision-509616.iam.gserviceaccount.com"
+    name  = "projects/bodyvision-509616/serviceAccounts/bv-dev-github-deploy@bodyvision-509616.iam.gserviceaccount.com"
+  }
+}
+
 variables {
   project_id                  = "bodyvision-509616"
   github_actions_allowed_refs = ["refs/heads/main"]
@@ -45,8 +53,12 @@ run "main_only_and_least_privilege" {
   }
 
   assert {
-    condition     = google_service_account_iam_member.github_deploy.role == "roles/iam.workloadIdentityUser"
-    error_message = "Utiliser la fédération, sans rôle TokenCreator supplémentaire."
+    condition = (
+      google_service_account_iam_member.github_deploy.role == "roles/iam.workloadIdentityUser" &&
+      google_service_account_iam_member.github_deploy.member == "principalSet://iam.googleapis.com/projects/669761732802/locations/global/workloadIdentityPools/bodyvision-dev-github/attribute.repository_id/1362922361" &&
+      google_iam_workload_identity_pool_provider.github.oidc[0].issuer_uri == "https://token.actions.githubusercontent.com"
+    )
+    error_message = "Utiliser uniquement le fournisseur GitHub et le dépôt Infrastructure pour l'impersonation."
   }
 
   assert {
