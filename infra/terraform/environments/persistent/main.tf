@@ -15,5 +15,7 @@ module "artifact_registry" {
   repository_id = "bodyvision-${var.environment}-docker"
 
   reader_members = { gke_nodes = "serviceAccount:${module.iam.gke_nodes_service_account_email}" }
-  writer_members = var.artifact_registry_writer_members
+  writer_members = merge(var.artifact_registry_writer_members, {
+    github_actions = "serviceAccount:${google_service_account.github_deploy.email}"
+  })
 }

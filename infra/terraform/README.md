@@ -7,7 +7,7 @@ Bucket GCS versionné : `bodyvision-509616-bodyvision-tfstate`. Workspace `defau
 | Racine | Préfixe | Propriété |
 | --- | --- | --- |
 | `bootstrap` | `bootstrap` | Bucket des states et API ; inchangé |
-| `environments/persistent` | `environments/persistent` | Artifact Registry, compte des nœuds GKE, lecture IAM du dépôt ; auteurs explicites optionnels |
+| `environments/persistent` | `environments/persistent` | Artifact Registry, compte des nœuds GKE, lecture IAM du dépôt, fédération GitHub et compte CI/déploiement |
 | `environments/dev` | `environments/dev` | VPC, sous-réseau, firewall, Router/NAT, cluster et node pool, compte d'observabilité, rôles d'exécution et liaison Workload Identity |
 | `environments/prod` | `environments/prod` | Racine réservée ; inchangée |
 
@@ -22,6 +22,10 @@ GKE reste Standard régional dans `europe-west9`, trois zones `a/b/c`, machines
 `e2-standard-2`, disques `pd-balanced` de 50 Gio, autoscaling de 1 à 3 nœuds par
 zone (3 à 9 au total). Les nœuds sont privés et utilisent Workload Identity.
 Tags Docker immuables, aucune politique de suppression d'images.
+
+[SCRUM-108](../../docs/SCRUM-108.md) décrit la fédération OIDC GitHub,
+les droits limités au push/lecture des nœuds et la preuve depuis un runner
+via l'endpoint DNS GKE, sans clé permanente.
 
 Le cluster utilise Dataplane V2 et le canal standard de Gateway API. Le réseau
 autorise le control plane à joindre KEDA sur TCP 6443/9443, uniquement sur les
@@ -86,9 +90,9 @@ Références : [transfert de states](https://developer.hashicorp.com/terraform/l
 [protocole GCS Terraform](https://github.com/hashicorp/terraform/blob/v1.14.3/internal/backend/remote-state/gcs/client.go).
 
 Après migration, utiliser uniquement cette configuration pour ces backends.
-Les PR #4 et #3 ont déjà été intégrées à la branche consolidée de la PR #2.
-Seule la PR #2 attend la revue et la fusion vers `main`. Synchroniser le checkout
-avec cette configuration avant toute opération ; ne pas appliquer les anciennes branches.
+Les PR #4 et #3 ont été intégrées à la PR #2, fusionnée dans `main`.
+Partir d'un checkout à jour de `main` avant toute opération ; ne pas appliquer
+les anciennes branches.
 
 ## Créer et détruire uniquement l'infrastructure éphémère
 
@@ -124,7 +128,8 @@ GCS et leurs opérations restent potentiellement facturés selon l'usage.
 ## Validation et CI
 
 La CI vérifie le formatage et valide les quatre racines sans accès GCP, avec
-Terraform 1.14.4 et Google 8.2.0 verrouillé. Aucun test ni script auxiliaire versionné.
+Terraform 1.14.4 et Google 8.2.0 verrouillé. Les tests simulés de `persistent`
+contrôlent la confiance GitHub et les permissions sans accès GCP.
 Elle construit également les Network Policies avec Kustomize sans contacter un cluster.
 
 ```powershell

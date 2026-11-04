@@ -25,3 +25,16 @@ variable "artifact_registry_writer_members" {
   type        = map(string)
   default     = {}
 }
+
+variable "github_actions_allowed_refs" {
+  description = "Branches GitHub explicites autorisées ; ajouter puis retirer la branche de preuve SCRUM-108"
+  type        = set(string)
+  default     = ["refs/heads/main"]
+
+  validation {
+    condition = length(var.github_actions_allowed_refs) > 0 && alltrue([
+      for ref in var.github_actions_allowed_refs : can(regex("^refs/heads/[A-Za-z0-9][A-Za-z0-9._/-]*$", ref))
+    ])
+    error_message = "Autoriser au moins une branche explicite refs/heads/... ; les tags, jokers et refs de PR sont interdits."
+  }
+}

@@ -2,5 +2,8 @@ project_id  = "bodyvision-509616"
 region      = "europe-west9"
 environment = "dev"
 
-# SCRUM-43 : identité de build explicite, aucune clé JSON.
+# Auteurs supplémentaires ; le compte GitHub Infrastructure est ajouté par Terraform.
 artifact_registry_writer_members = {}
+
+github_actions_allowed_refs = ["refs/heads/main"]
+# Pendant la preuve seulement, ajouter "refs/heads/codex/scrum-108-github-gcp".
