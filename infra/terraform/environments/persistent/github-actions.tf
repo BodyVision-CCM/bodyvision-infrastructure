@@ -4,8 +4,9 @@ data "google_project" "this" {
 
 locals {
   # Stable IDs: BodyVision-CCM / bodyvision-infrastructure, not reusable names.
-  github_owner_id      = "327074116"
-  github_repository_id = "1362922361"
+  github_owner_id         = "327074116"
+  github_repository_id    = "1362922361"
+  github_actions_workflow = "/.github/workflows/gcp-access-smoke.yml"
 }
 
 resource "google_iam_workload_identity_pool" "github" {
@@ -35,6 +36,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "assertion.repository_id == '${local.github_repository_id}'",
     "assertion.ref in ${jsonencode(sort(tolist(var.github_actions_allowed_refs)))}",
     "assertion.event_name in ['push', 'workflow_dispatch']",
+    "assertion.workflow_ref.endsWith('${local.github_actions_workflow}@' + assertion.ref)",
   ])
 
   oidc {

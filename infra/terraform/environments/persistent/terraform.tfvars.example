@@ -7,3 +7,5 @@ artifact_registry_writer_members = {}
 
 github_actions_allowed_refs = ["refs/heads/main"]
 # Pendant la preuve seulement, ajouter "refs/heads/codex/scrum-108-github-gcp".
+
+users_build_allowed_refs = ["refs/heads/main"]
