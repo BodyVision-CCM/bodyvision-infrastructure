@@ -14,6 +14,7 @@ resource "google_iam_workload_identity_pool_provider" "users_build" {
     "assertion.repository_id == '${local.github_repository_id}'",
     "assertion.ref in ${jsonencode(sort(tolist(var.users_build_allowed_refs)))}",
     "assertion.event_name in ['push', 'workflow_dispatch']",
+    "assertion.workflow_ref.endsWith('/.github/workflows/build-images.yml@' + assertion.ref)",
   ])
 
   oidc {

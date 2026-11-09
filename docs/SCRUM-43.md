@@ -29,7 +29,7 @@ Les PR construisent et scannent sans accès GCP.
 
 ## Identité de build
 
-Cette branche dépend de SCRUM-108 (PR #6). Intégrer SCRUM-108 avant cette PR.
+SCRUM-108 (PR #6) est intégré à `main`.
 
 Quatre ressources supplémentaires dans le state `persistent` :
 
@@ -38,12 +38,18 @@ Quatre ressources supplémentaires dans le state `persistent` :
 - Liaison Workload Identity User pour l'ID Infrastructure `1362922361`.
 - Writer Artifact Registry au niveau de `bodyvision-dev-docker` seulement.
 
-Le fournisseur vérifie l'ID organisation `327074116`, l'ID Infrastructure,
-les refs explicites de `users_build_allowed_refs` et les événements `push` ou
-`workflow_dispatch`. La valeur par défaut est `refs/heads/main`.
-Son attribut `build_repository_id` est distinct de `repository_id`, utilisé
-par SCRUM-108 : aucun des deux fournisseurs ne peut impersonner le compte
-de l'autre. Le compte de build n'a aucun droit GKE ou IAM d'administration.
+Le fournisseur `user-service` n'accepte que les jetons dont `workflow_ref`
+correspond à `.github/workflows/build-images.yml` ; le fournisseur `github`
+n'accepte que `.github/workflows/gcp-access-smoke.yml`. Le chemin est vérifié
+avec la ref du jeton, en plus des IDs organisation `327074116` et dépôt
+Infrastructure, des refs explicites de chaque fournisseur et des événements
+`push` ou `workflow_dispatch`. La valeur par défaut est `refs/heads/main`.
+Ainsi, même un job du dépôt doté de `id-token: write` ne peut pas choisir
+l'autre fournisseur. `workflow_ref` est le claim du workflow classique qui
+s'exécute ([claim OIDC GitHub](https://docs.github.com/en/actions/reference/security/oidc#oidc-token-claims)) ;
+`job_workflow_ref` ne s'applique qu'aux workflows réutilisables.
+L'attribut `build_repository_id` reste distinct de `repository_id`, utilisé
+par SCRUM-108. Le compte de build n'a aucun droit GKE ou IAM d'administration.
 Aucune clé permanente, aucun cluster ni registre supplémentaire.
 
 Outputs publics : `users_build_workload_identity_provider`,
@@ -67,8 +73,10 @@ ressources sont appliquées ; aucun cluster GKE n'a été créé et le compte
 de build n'a aucune clé utilisateur.
 Le plan `persistent` final est sans changement (code de sortie 0).
 
-Les huit tests Terraform simulés contrôlent notamment l'isolation des comptes,
-les permissions et le rejet des refs PR ou contenant un joker.
+Les tests Terraform simulés vérifient les conditions complètes des deux
+fournisseurs (dépôt, refs, événements et fichier workflow), leur séparation,
+l'isolation des comptes, les permissions et le rejet des refs PR ou contenant
+un joker. Ils échouent si une restriction disparaît de la condition appliquée.
 
 ## Extensions suivies séparément
 
@@ -95,8 +103,7 @@ exécutables suffisent pour commencer l'intégration, sans attendre toutes les
 fonctionnalités métier.
 
 La revue et la validation de SCRUM-43 portent sur Utilisateurs et peuvent avancer
-indépendamment de ces extensions. Il reste à valider et intégrer la PR #6 de
-SCRUM-108, puis à recibler et intégrer la PR #7 ; la dépendance exprime cet ordre
-d'intégration.
+indépendamment de ces extensions. La PR #6 de SCRUM-108 est intégrée ; la PR #7
+reste à valider et intégrer.
 
 Référence : https://bodyvision.atlassian.net/browse/SCRUM-43

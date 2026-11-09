@@ -50,8 +50,17 @@ run "users_build_isolated_identity" {
       "assertion.repository_id == '1362922361'",
       "assertion.ref in [\"refs/heads/main\"]",
       "assertion.event_name in ['push', 'workflow_dispatch']",
+      "assertion.workflow_ref.endsWith('/.github/workflows/build-images.yml@' + assertion.ref)",
     ])
     error_message = "Seul un push ou lancement manuel main du dépôt Infrastructure doit être accepté."
+  }
+
+  assert {
+    condition = (
+      strcontains(google_iam_workload_identity_pool_provider.users_build.attribute_condition, ".github/workflows/build-images.yml") &&
+      !strcontains(google_iam_workload_identity_pool_provider.users_build.attribute_condition, ".github/workflows/gcp-access-smoke.yml")
+    )
+    error_message = "Seul build-images.yml doit pouvoir utiliser le fournisseur user-service."
   }
 
   assert {
@@ -105,8 +114,17 @@ run "main_only_and_least_privilege" {
       "assertion.repository_id == '1362922361'",
       "assertion.ref in [\"refs/heads/main\"]",
       "assertion.event_name in ['push', 'workflow_dispatch']",
+      "assertion.workflow_ref.endsWith('${local.github_actions_workflow}@' + assertion.ref)",
     ])
     error_message = "La confiance doit être limitée aux IDs BodyVision, à main et aux événements sans PR."
+  }
+
+  assert {
+    condition = (
+      strcontains(google_iam_workload_identity_pool_provider.github.attribute_condition, ".github/workflows/gcp-access-smoke.yml") &&
+      !strcontains(google_iam_workload_identity_pool_provider.github.attribute_condition, ".github/workflows/build-images.yml")
+    )
+    error_message = "Seul gcp-access-smoke.yml doit pouvoir utiliser le fournisseur github."
   }
 
   assert {
