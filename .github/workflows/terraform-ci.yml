@@ -83,6 +83,11 @@ jobs:
         working-directory: infra/terraform/${{ matrix.root }}
         run: terraform validate -no-color
 
+      - name: Test GitHub trust and permissions without GCP
+        if: matrix.root == 'environments/persistent'
+        working-directory: infra/terraform/environments/persistent
+        run: terraform test -no-color
+
   trivy:
     name: Trivy infrastructure
     runs-on: ubuntu-24.04
