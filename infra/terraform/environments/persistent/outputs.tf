@@ -10,6 +10,21 @@ output "environment" {
   value = var.environment
 }
 
+output "raw_telemetry_bucket_name" {
+  description = "Nom du bucket GCS de télémétrie brute"
+  value       = google_storage_bucket.raw_telemetry.name
+}
+
+output "telemetry_gateway_service_account_email" {
+  description = "Compte de service autorisé à déposer la télémétrie brute"
+  value       = google_service_account.telemetry_gateway.email
+}
+
+output "analytics_telemetry_reader_service_account_email" {
+  description = "Compte de service autorisé à lire la télémétrie brute"
+  value       = google_service_account.analytics_telemetry_reader.email
+}
+
 output "gke_nodes_service_account_email" {
   value = module.iam.gke_nodes_service_account_email
 }

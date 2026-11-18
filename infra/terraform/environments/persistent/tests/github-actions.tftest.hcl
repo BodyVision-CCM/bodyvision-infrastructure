@@ -181,3 +181,25 @@ run "reject_pull_request_ref" {
 
   expect_failures = [var.github_actions_allowed_refs]
 }
+run "raw_telemetry_bucket_contract" {
+  command = plan
+  assert {
+    condition     = google_storage_bucket.raw_telemetry.public_access_prevention == "enforced"
+    error_message = "Le bucket de télémétrie doit interdire tout accès public."
+  }
+  assert {
+    condition     = anytrue([for rule in google_storage_bucket.raw_telemetry.lifecycle_rule : anytrue([for condition in rule.condition : condition.age == 30])])
+    error_message = "La télémétrie brute doit être supprimée après 30 jours."
+  }
+  assert {
+    condition     = google_storage_bucket.raw_telemetry.soft_delete_policy[0].retention_duration_seconds == 0
+    error_message = "Le soft delete GCS doit être désactivé pour respecter une rétention réelle de 30 jours."
+  }
+  assert {
+    condition = (
+      google_storage_bucket_iam_member.telemetry_gateway_writer.role == "roles/storage.objectCreator" &&
+      google_storage_bucket_iam_member.analytics_telemetry_reader.role == "roles/storage.objectViewer"
+    )
+    error_message = "Les accès télémétrie doivent rester limités à objectCreator pour Ingestion et objectViewer pour Analytique."
+  }
+}
