@@ -30,6 +30,10 @@ resource "google_storage_bucket" "raw_telemetry" {
   public_access_prevention    = "enforced"
   force_destroy               = false
 
+  soft_delete_policy {
+    retention_duration_seconds = 0
+  }
+
   lifecycle_rule {
     condition {
       age = 30
@@ -53,9 +57,9 @@ resource "google_storage_bucket" "raw_telemetry" {
 
 resource "google_service_account" "telemetry_gateway" {
   project      = var.project_id
-  account_id   = "bv-${var.environment}-telemetry-gateway"
-  display_name = "BodyVision ${var.environment} telemetry gateway"
-  description  = "Compte utilisé par la gateway pour déposer les lots de télémétrie brute"
+  account_id   = "bv-${var.environment}-ingestion-telemetry"
+  display_name = "BodyVision ${var.environment} ingestion telemetry"
+  description  = "Compte utilisé par le service Ingestion pour déposer les lots de télémétrie brute"
 }
 
 resource "google_service_account" "analytics_telemetry_reader" {
