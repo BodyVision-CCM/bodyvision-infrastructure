@@ -188,7 +188,7 @@ run "raw_telemetry_bucket_contract" {
     error_message = "Le bucket de télémétrie doit interdire tout accès public."
   }
   assert {
-    condition     = google_storage_bucket.raw_telemetry.lifecycle_rule[0].condition[0].age == 30
+    condition     = anytrue([for rule in google_storage_bucket.raw_telemetry.lifecycle_rule : anytrue([for condition in rule.condition : condition.age == 30])])
     error_message = "La télémétrie brute doit être supprimée après 30 jours."
   }
   assert {
