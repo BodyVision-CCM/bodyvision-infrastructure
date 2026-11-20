@@ -7,8 +7,8 @@ Bucket GCS versionné : `bodyvision-509616-bodyvision-tfstate`. Workspace `defau
 | Racine | Préfixe | Propriété |
 | --- | --- | --- |
 | `bootstrap` | `bootstrap` | Bucket des states et API ; inchangé |
-| `environments/persistent` | `environments/persistent` | Artifact Registry, compte des nœuds GKE, lecture IAM du dépôt, fédération GitHub et compte CI/déploiement |
-| `environments/dev` | `environments/dev` | VPC, sous-réseau, firewall, Router/NAT, cluster et node pool, compte d'observabilité, rôles d'exécution et liaison Workload Identity |
+| `environments/persistent` | `environments/persistent` | VPC, sous-réseau, firewall, Router/NAT, Cloud SQL et accès privé, Artifact Registry, bucket de télémétrie, identités durables et fédération GitHub |
+| `environments/dev` | `environments/dev` | Cluster et node pool GKE, compte d'observabilité, rôles d'exécution et liaison Workload Identity |
 | `environments/prod` | `environments/prod` | Racine réservée ; inchangée |
 
 Avant SCRUM-103, `dev` possédait également le dépôt et sa destruction supprimait
@@ -17,6 +17,24 @@ les images. Après migration, `persistent` possède `bodyvision-dev-docker` et
 outputs avec `terraform_remote_state` et vérifie projet/région/environnement.
 Le compte et la permission de lecture du dépôt survivent à GKE ; les quatre rôles
 logging/monitoring des nœuds sont éphémères. Aucune identité n'est gérée deux fois.
+
+SCRUM-49 conserve également le réseau et PostgreSQL dans `persistent`, selon
+l'arbitrage SCRUM-25. `dev` consomme les outputs réseau de ce state. Arrêter GKE
+conserve donc SQL, ses données, le VPC et Router/NAT, avec leur facturation.
+Voir [SCRUM-49](../../docs/SCRUM-49.md) pour le bootstrap des rôles et schémas,
+la gestion des mots de passe hors Terraform et les preuves restant à réaliser.
+
+**Migration obligatoire avant application si le réseau existe dans `dev`.**
+La procédure SCRUM-103 ci-dessous décrit le transfert historique de trois
+ressources ; elle ne migre pas le réseau de SCRUM-49. Ne pas appliquer la nouvelle
+configuration directement : inventorier toutes les adresses `module.network`
+du state source et les transférer vers `persistent` sans recréer les ressources,
+avec sauvegardes vérifiées et verrouillage des deux states selon le protocole
+ci-dessous. Conserver exactement les CIDR et paramètres existants. Vérifier les
+plans complets des deux racines : aucun remplacement ou destruction du VPC,
+du sous-réseau, des règles, du Router ou du NAT n'est acceptable. La publication
+des nouveaux outputs doit précéder le plan de `dev`. Aucune migration de state
+n'est effectuée automatiquement par ce code.
 
 GKE reste Standard régional dans `europe-west9`, trois zones `a/b/c`, machines
 `e2-standard-2`, disques `pd-balanced` de 50 Gio, autoscaling de 1 à 3 nœuds par
@@ -74,10 +92,12 @@ terraform state mv "-state=$migrationDirectory/dev-after.tfstate" "-state-out=$m
    push`, sans `-force`. `-lock=false` est réservé à cette transaction lorsque
    l'opérateur détient déjà les **deux** verrous GCS. Vérifier immédiatement 0/3
    ressources, puis libérer exclusivement les générations de locks acquises.
-7. Publier les nouveaux outputs par un plan complet `-refresh-only`, relu sans
+7. Pour la migration historique SCRUM-103, publier les nouveaux outputs par un plan complet `-refresh-only`, relu sans
    action sur les ressources. Vérifier un plan persistent sans changement, un
    plan complet dev avec créations éphémères uniquement et un plan destroy dev
    sans ressource persistante. Ne pas appliquer dev pendant cette intervention.
+   Après SCRUM-49, le plan `persistent` inclut les créations SQL prévues : les
+   distinguer explicitement des ressources transférées, qui doivent rester inchangées.
 8. Comparer dépôt/date de création, compte/ID unique, IAM et digest/tags avant/après.
    Vérifier tags immuables, pull d'une image existante et absence de GKE/VPC/NAT.
 
@@ -122,8 +142,10 @@ donc réserver les droits du bucket aux opérateurs autorisés. Un destroy dev v
 est un contrôle partiel : inspecter aussi le plan complet pour confirmer que le
 dépôt et le compte des nœuds ne sont pas déclarés dans dev.
 
-GKE et NAT restent facturés lorsqu'ils sont créés. Le stockage Artifact Registry,
-GCS et leurs opérations restent potentiellement facturés selon l'usage.
+GKE reste facturé lorsqu'il est créé. NAT, Cloud SQL, les disques et sauvegardes
+restent dans `persistent` et peuvent continuer à être facturés après destruction
+de `dev`. Le stockage Artifact Registry, GCS et leurs opérations restent
+potentiellement facturés selon l'usage.
 
 ## Validation et CI
 
