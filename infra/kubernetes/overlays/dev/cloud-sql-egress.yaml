@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-private-cloud-sql-proxy
+  namespace: bodyvision
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [users, analytics-api, analytics-worker]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.218.0.3/32
+      ports:
+        - protocol: TCP
+          port: 3307

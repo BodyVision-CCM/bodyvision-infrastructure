@@ -1,4 +1,11 @@
 mock_provider "google" {
+  mock_resource "google_compute_network" {
+    defaults = {
+      id        = "projects/bodyvision-509616/global/networks/bodyvision-dev-vpc"
+      self_link = "https://www.googleapis.com/compute/v1/projects/bodyvision-509616/global/networks/bodyvision-dev-vpc"
+    }
+  }
+
   mock_resource "google_service_account" {
     defaults = {
       email = "mock-ci@bodyvision-509616.iam.gserviceaccount.com"
