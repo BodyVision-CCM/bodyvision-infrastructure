@@ -10,11 +10,11 @@ toute application de cette nouvelle configuration ; ne pas recréer le VPC.
 Le bootstrap SQL est séparé de Terraform : aucune connexion SQL ni aucun mot
 de passe ne passe dans le state. L'environnement `prod` reste réservé.
 
-**Infrastructure déployée ; validation SQL incomplète.** PostgreSQL 16 privé,
-les protections de suppression et les sauvegardes ont été contrôlés dans GCP.
-Une sauvegarde automatique est réussie. Le test privé a été interrompu à la
-demande de l'opérateur ; les propriétaires des schémas et le succès Alembic
-ne sont pas attestés. Ne pas clôturer le ticket avant cette preuve.
+**Infrastructure et critères SQL validés le 20 novembre 2026.** PostgreSQL 16
+privé, protections et sauvegarde automatique contrôlés. Après interruption du
+test VM le 19/11, une validation sans VM par job Cloud Run privé temporaire a
+réussi : bootstrap rejoué, propriétaires et isolation vérifiés, Alembic appliqué
+deux fois avec succès puis révision courante lue. Le job a été supprimé.
 
 ## Précontrôle GCP du 19 novembre 2026
 
@@ -38,7 +38,32 @@ La VM `bv-scrum49-proof-20261119165324` a été supprimée et SQL vérifié
 Aucune preuve Alembic complète n'a été retenue. Trois secrets Cloud SQL ont été
 créés dans Secret Manager : `bv-dev-postgres-admin-password`,
 `bv-dev-utilisateurs-db-password`, `bv-dev-analytique-db-password`.
-Le statut des rôles et schémas doit être contrôlé lors de la prochaine connexion.
+Ce constat historique est remplacé par les preuves du 20/11 ci-dessous.
+
+### Preuves réelles du 20 novembre 2026 (sans VM)
+
+Job Cloud Run `bv-scrum49-validation`, Direct VPC egress vers le VPC existant,
+TLS PostgreSQL, identité temporaire limitée aux trois secrets nommés ci-dessus.
+Image Utilisateurs immuable :
+`europe-west9-docker.pkg.dev/bodyvision-509616/bodyvision-dev-docker/user-service@sha256:f4dc907740ad0ec1f6e07c7cba50d9b47c08ef8e0b89b6bf02eb32636e85b351`
+(source `38008c97be67eefbe3c548d06a29ffc992e518f9`, image SCRUM-43 existante).
+
+- `bv-scrum49-validation-z9fwq` : bootstrap deux fois ; sorties
+  `BOOTSTRAP_REPLAY_OK`, `OWNERS_OK`, `ISOLATION_OK` pour les deux rôles,
+  `SCRUM49_BOOTSTRAP_SUCCESS`, exit 0.
+- Propriétaires : `analytique` → `bv_analytique`, `utilisateurs` → `bv_utilisateurs`.
+- Mots de passe distincts des rôles alignés sur les secrets existants, sans
+  valeur affichée, versionnée ou stockée dans Terraform.
+- `bv-scrum49-validation-tf66l` : `alembic upgrade head`, réussite.
+- `bv-scrum49-validation-h7rxk` : deuxième `alembic upgrade head`, réussite.
+- `bv-scrum49-validation-4k22t` : `alembic current`, révision `0001 (head)`, exit 0.
+- Une première tentative Alembic avait échoué avant migration (arguments CLI
+  joints par PowerShell) ; relance avec arguments séparés réussie.
+
+Le job, son compte de service et les trois attributions temporaires
+Secret Accessor ont été supprimés après validation. SQL est remis en politique
+`NEVER`. L'API Cloud Run activée ne constitue pas un workload facturé au repos.
+Les identités et politiques GKE de cette PR restent à déployer avec GKE.
 
 Mise à jour du précontrôle : SCRUM-100 et la PR GitHub #8 confirment explicitement
 le nouveau compte Ingestion et le soft delete désactivé. Le plan ciblé a été
@@ -76,8 +101,9 @@ Dans une session interactive `psql`, définir les mots de passe avec les invites
 dans les arguments CLI, l'historique SQL, les logs CI ou les fichiers versionnés.
 Les transférer par le canal de secrets approuvé aux workloads concernés.
 Les nouveaux rôles n'ont pas de mot de passe utilisable avant cette étape.
-Les secrets créés pendant la tentative de validation ne prouvent pas que leurs
-valeurs ont été appliquées aux rôles : vérifier cette correspondance avant usage.
+La validation du 20/11 a aligné et testé les mots de passe des deux rôles avec
+leurs secrets respectifs. Les valeurs restent accessibles aux opérateurs
+autorisés uniquement via Secret Manager.
 Terraform ne gère pas leur rotation. Ne pas exposer de port PostgreSQL public
 pour faciliter cette initialisation.
 
@@ -128,7 +154,7 @@ Contrainte budgétaire Master 2 : le calcul Cloud SQL est arrêté par défaut
 de validation, puis revenir à `NEVER`. L'arrêt conserve les données mais le
 stockage et les sauvegardes restent facturables. Le 19 novembre 2026, les 12
 ressources ont été créées, dont PostgreSQL privé à `10.218.0.3` et la base
-`bodyvision`. Les rôles, schémas et la migration Alembic restent non vérifiés.
+`bodyvision`. Les rôles, schémas et migrations ont été vérifiés le 20/11.
 
 Cloud SQL, ses disques et sauvegardes peuvent rester facturés indépendamment de
 l'activité de GKE. Relire le plan de destruction et les protections avant tout
