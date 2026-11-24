@@ -17,26 +17,8 @@ data "terraform_remote_state" "persistent" {
   }
 }
 
-module "network" {
-  source = "../../modules/network"
-
-  project_id  = var.project_id
-  region      = var.region
-  environment = var.environment
-
-  network_name    = "bodyvision-${var.environment}-vpc"
-  subnetwork_name = "bodyvision-${var.environment}-subnet"
-
-  subnetwork_cidr = var.subnetwork_cidr
-
-  master_ipv4_cidr_block     = var.master_ipv4_cidr_block
-  node_service_account_email = data.terraform_remote_state.persistent.outputs.gke_nodes_service_account_email
-
-  pods_secondary_range_name = "bodyvision-${var.environment}-pods"
-  pods_secondary_cidr       = var.pods_secondary_cidr
-
-  services_secondary_range_name = "bodyvision-${var.environment}-services"
-  services_secondary_cidr       = var.services_secondary_cidr
+locals {
+  persistent_network = data.terraform_remote_state.persistent.outputs
 }
 
 module "iam" {
@@ -56,10 +38,10 @@ module "gke" {
 
   cluster_name = "bodyvision-${var.environment}-gke"
 
-  network_id                    = module.network.network_id
-  subnetwork_id                 = module.network.subnetwork_id
-  pods_secondary_range_name     = module.network.pods_secondary_range_name
-  services_secondary_range_name = module.network.services_secondary_range_name
+  network_id                    = local.persistent_network.network_id
+  subnetwork_id                 = local.persistent_network.subnetwork_id
+  pods_secondary_range_name     = local.persistent_network.pods_secondary_range_name
+  services_secondary_range_name = local.persistent_network.services_secondary_range_name
 
   master_ipv4_cidr_block = var.master_ipv4_cidr_block
   node_locations         = var.node_locations

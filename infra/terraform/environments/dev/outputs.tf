@@ -15,17 +15,17 @@ output "docker_repository_url" {
 
 output "network_name" {
   description = "Nom du VPC de développement"
-  value       = module.network.network_name
+  value       = local.persistent_network.network_name
 }
 
 output "subnetwork_name" {
   description = "Nom du sous-réseau de développement"
-  value       = module.network.subnetwork_name
+  value       = local.persistent_network.subnetwork_name
 }
 
 output "nat_name" {
   description = "Nom du Cloud NAT"
-  value       = module.network.nat_name
+  value       = local.persistent_network.nat_name
 }
 
 output "gke_nodes_service_account_email" {

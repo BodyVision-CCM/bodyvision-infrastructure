@@ -33,6 +33,8 @@ jobs:
 
       - name: Build network policies without a cluster
         run: kubectl kustomize infra/kubernetes/network-policies > "$RUNNER_TEMP/bodyvision-network-policies.yaml"
+      - name: Build dev Cloud SQL overlay
+        run: kubectl kustomize infra/kubernetes/overlays/dev > "$RUNNER_TEMP/bodyvision-dev-network-policies.yaml"
 
   format:
     name: Check Terraform formatting
@@ -86,6 +88,24 @@ jobs:
       - name: Test GitHub trust and permissions without GCP
         if: matrix.root == 'environments/persistent'
         working-directory: infra/terraform/environments/persistent
+        run: terraform test -no-color
+
+  cloud-sql:
+    name: Test Cloud SQL without GCP
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.14.4"
+          terraform_wrapper: false
+      - name: Initialize module
+        working-directory: infra/terraform/modules/cloud_sql
+        run: terraform init -backend=false -input=false -lockfile=readonly
+      - name: Test private PostgreSQL contract
+        working-directory: infra/terraform/modules/cloud_sql
         run: terraform test -no-color
 
   trivy:
