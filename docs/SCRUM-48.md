@@ -250,3 +250,10 @@ La chaîne automatique `workflow_run` avec téléchargement du nouvel artefact
 reste à constater après fusion sur main et nouveau build main ; elle n'est pas
 présentée comme une preuve déjà obtenue. SCRUM-48 reste ouvert pour cette
 vérification et les trois autres Deployments.
+
+Contrôles de fermeture : plan destroy comparé au plan initial, exactement les
+23 mêmes ressources dev ; aucune ressource durable visée. Après suppression du
+pool, aucune VM ni IP NAT allouée ; SQL confirmé **STOPPED / NEVER** par describe.
+Le dernier plan persistent, réalisé avant l'arrêt SQL, indiquait **No changes**.
+Le résultat du destroy et l'état final du cluster sont consignés dans
+[SCRUM-48](https://bodyvision.atlassian.net/browse/SCRUM-48?focusedCommentId=10432).
