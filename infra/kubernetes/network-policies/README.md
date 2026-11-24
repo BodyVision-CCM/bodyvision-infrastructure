@@ -70,14 +70,13 @@ interdit `hostNetwork`. Vérifier les flux de collecte avec les vrais collecteur
 Cloud SQL est provisionné par SCRUM-49. L'overlay `../overlays/dev` autorise
 son IP privée réelle `10.218.0.3/32` sur TCP 3307 pour le proxy Cloud SQL.
 
-Dans SCRUM-49, préparer un réseau durable pour la connexion privée et ajouter
-une règle Egress vers l'IP privée **/32** aux seuls Pods `users`,
-`analytics-api` et `analytics-worker`. L'exemple
-`examples/cloud-sql-egress.yaml.example` n'est pas inclus dans Kustomize.
-Renseigner l'IP réelle et ajouter le fichier complété à un overlay avant de
-déployer les API. Garder TCP 3307 pour Auth Proxy/Connectors, ou TCP 5432 pour un
-accès PostgreSQL direct avec TLS, selon le mode retenu. Le HTTPS des API GCP est
-déjà permis. Le compte IAM et les rôles SQL restent propres à chaque service.
+Le bootstrap [SCRUM-48](../../../docs/SCRUM-48.md) applique cet overlay avant
+les workloads. Il autorise uniquement `users`, `analytics-api` et
+`analytics-worker` vers cette IP **/32**. L'exemple
+`examples/cloud-sql-egress.yaml.example` reste hors Kustomize. Pour un autre
+projet, remplacer l'IP par celle réellement provisionnée et conserver TCP 3307
+pour Auth Proxy/Connectors (5432 uniquement pour une connexion directe avec TLS).
+Le HTTPS des API GCP est déjà permis. Chaque service garde son identité et son rôle SQL.
 
 Les données Cloud SQL, le bucket brut et les messages RabbitMQ ne doivent pas
 être perdus lors d'un destroy dev : préciser leur sauvegarde et cycle de vie
