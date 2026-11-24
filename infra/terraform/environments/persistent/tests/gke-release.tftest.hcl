@@ -19,6 +19,7 @@ run "release_identity_isolated" {
   assert {
     condition = (
       strcontains(google_iam_workload_identity_pool_provider.gke_release.attribute_condition, "assertion.ref in [\"refs/heads/main\"]") &&
+      strcontains(google_iam_workload_identity_pool_provider.gke_release.attribute_condition, "assertion.event_name in ['workflow_run', 'workflow_dispatch']") &&
       strcontains(google_iam_workload_identity_pool_provider.gke_release.attribute_condition, "/.github/workflows/deploy-users.yml@") &&
       contains(keys(google_iam_workload_identity_pool_provider.gke_release.attribute_mapping), "attribute.release_repository_id") &&
       !contains(keys(google_iam_workload_identity_pool_provider.gke_release.attribute_mapping), "attribute.repository_id") &&

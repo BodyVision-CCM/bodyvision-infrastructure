@@ -5,7 +5,7 @@ GKE utilise Dataplane V2 pour appliquer les politiques de ce dossier. Le namespa
 ci-dessous sont autorisées. Les politiques sont déployées séparément du socle
 Terraform, lors du déploiement des workloads (SCRUM-48/66).
 
-Aucun cluster, Pod ou politique n'a été déployé par l'ajout de ces fichiers.
+Cette base est installée par le bootstrap de session SCRUM-48 avant les workloads.
 Dataplane V2 seul n'isole pas les Pods : le déploiement de cette base est requis.
 
 ## Contrat de déploiement
@@ -46,6 +46,9 @@ Si son nom est changé dans SCRUM-102, adapter la politique avant installation.
 | Applications et observability | Destinations externes, TCP 443 | API GCP/Cloud SQL Connectors |
 
 Les sélecteurs de Pods sans sélecteur de namespace sont limités à `bodyvision`.
+DNS autorise `kube-dns` et `node-local-dns` dans `kube-system`, ainsi que
+`169.254.20.10/32`, sur UDP/TCP 53. Sur GKE 1.36 / Dataplane V2, le cache local
+peut utiliser une IP de Pod : le seul CIDR link-local ne suffit pas.
 La règle KEDA combine namespace **et** label du Pod. Aucun accès entrant public
 `0.0.0.0/0`, aucun accès direct Ingestion → Analytique API, et aucun accès des API
 au broker en dehors des clients déclarés ne sont autorisés.

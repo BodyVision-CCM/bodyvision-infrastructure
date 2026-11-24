@@ -22,7 +22,7 @@ resource "google_iam_workload_identity_pool_provider" "gke_release" {
     "assertion.repository_owner_id == '${local.github_owner_id}'",
     "assertion.repository_id == '${local.github_repository_id}'",
     "assertion.ref in ${jsonencode(sort(tolist(var.gke_release_allowed_refs)))}",
-    "assertion.event_name in ['workflow_run', 'workflow_dispatch', 'push']",
+    "assertion.event_name in ['workflow_run', 'workflow_dispatch']",
     "assertion.workflow_ref.endsWith('/.github/workflows/deploy-users.yml@' + assertion.ref)",
   ])
   oidc { issuer_uri = "https://token.actions.githubusercontent.com" }

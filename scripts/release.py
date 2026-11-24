@@ -56,10 +56,10 @@ def prepare():
         Path(".release-run.json").write_text(json.dumps(run))
         output(mode="build", run_id=run_id)
     else:
-        if os.environ["GITHUB_EVENT_NAME"] not in ("workflow_dispatch", "push"):
+        if os.environ["GITHUB_EVENT_NAME"] != "workflow_dispatch":
             raise ValueError("Unsupported deployment event")
         Path(".release-run.json").unlink(missing_ok=True)
-        digest = event.get("inputs", {}).get("image_digest") or os.environ.get("PROOF_IMAGE_DIGEST", "")
+        digest = event["inputs"]["image_digest"]
         image = validate_image(f"{IMAGE}@{digest}")
         Path(".release.json").write_text(json.dumps({"image": image}))
         output(mode="manual", run_id="")

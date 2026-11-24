@@ -11,10 +11,6 @@ on:
         description: "Digest sha256 de l'image Utilisateurs à déployer (ou rétablir)"
         required: true
         type: string
-  # Temporary proof trigger; validates native NodeLocal DNS and the SQL proxy.
-  push:
-    branches: [codex/scrum-48-gke-deploy]
-    paths: [.github/workflows/deploy-users.yml]
 
 permissions:
   contents: read
@@ -33,8 +29,6 @@ jobs:
       contents: read
       actions: read
       id-token: write
-    env:
-      PROOF_IMAGE_DIGEST: ${{ github.event_name == 'push' && 'sha256:96111f2269c53ea076855f65b139d0d44b77cefbab7a961fe0b3f89502937eb9' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -205,3 +205,48 @@ d'Utilisateurs ne constitue pas une validation des trois autres Deployments.
 
 Sources : [Secret Manager CSI](https://cloud.google.com/secret-manager/docs/secret-manager-managed-csi-component),
 [Cloud SQL Proxy 2.28.1](https://github.com/GoogleCloudPlatform/cloud-sql-proxy/releases/tag/v2.28.1).
+
+## Preuve du 24 novembre 2026
+
+- [PR #10](https://github.com/BodyVision-CCM/bodyvision-infrastructure/pull/10).
+- [Run GKE réussi 45466986564](https://github.com/BodyVision-CCM/bodyvision-infrastructure/actions/runs/45466986564),
+  code de preuve `bb64dd924f479b3d1667c3b0badbbf7aee68c410`.
+- Image : `europe-west9-docker.pkg.dev/bodyvision-509616/bodyvision-dev-docker/user-service@sha256:96111f2269c53ea076855f65b139d0d44b77cefbab7a961fe0b3f89502937eb9`.
+- Source Utilisateurs : `dbdc218d64b6294f20abbf3ff0edbb1bcd615465`, image scannée
+  et publiée par [SCRUM-43, run 45458006955](https://github.com/BodyVision-CCM/bodyvision-infrastructure/actions/runs/45458006955).
+- Cluster GKE `1.36.4-gke.2377000`, un nœud privé `e2-standard-2` en
+  `europe-west9-a`. Deployment `users` disponible **1/1**, Pod **2/2** sans
+  redémarrage, Service **ClusterIP**, aucune IP externe.
+
+Extrait du run :
+
+```text
+MIGRATION_JOB_OK users-migrate-b3dae4ac45c3
+HEALTHZ_OK
+READYZ_DATABASE_UP
+JWKS_RS256_OK
+DEPLOYMENT_SUCCESS
+```
+
+L'identité CI a confirmé : création de Deployments dans `bodyvision` autorisée ;
+lecture des Secrets, création de RoleBindings et création de Deployments dans
+`default` refusées. Le Job de migration a été supprimé par le workflow.
+
+Deux défauts ont été identifiés puis corrigés par cette preuve : droits CSI
+alignés sur le GSA annoté, et autorisation des Pods NodeLocal DNS. Les échecs de
+migration ont bien empêché la création du Deployment. Les 10 tests Python
+couvrent aussi le rollback exact après échec du smoke test ou apply partiel ;
+ce rollback n'a pas été provoqué sur le cluster réel.
+
+Plans appliqués : persistent **6 créations / 0 modification / 0 suppression** ;
+dev **23 créations / 0 modification / 0 suppression**. La correction CSI a
+remplacé uniquement trois liaisons IAM, sans remplacer les secrets. Le retrait
+de l'autorisation temporaire a ensuite modifié le fournisseur OIDC sur place
+(**0 création / 1 modification / 0 suppression**).
+
+Le run réel utilise la sélection explicite du digest, déclenchée temporairement
+sur la ref de preuve. Le déclencheur et son accès OIDC ont été retirés ensuite.
+La chaîne automatique `workflow_run` avec téléchargement du nouvel artefact
+reste à constater après fusion sur main et nouveau build main ; elle n'est pas
+présentée comme une preuve déjà obtenue. SCRUM-48 reste ouvert pour cette
+vérification et les trois autres Deployments.
