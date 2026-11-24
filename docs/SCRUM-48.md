@@ -86,6 +86,9 @@ artefact ; les anciens runs de build ne possèdent pas cet artefact.
 - Pods sans privilèges, filesystem racine en lecture seule, ressources bornées,
   probes et Network Policies avant les workloads. Les labels restent ceux du
   contrat SCRUM-66. Le Service Utilisateurs est interne (`ClusterIP`).
+- DNS : la règle autorise aussi les Pods `node-local-dns` de `kube-system`
+  sur UDP/TCP 53. Avec GKE 1.36 / Dataplane V2, ce cache a une IP de Pod ;
+  autoriser seulement `kube-dns` et l'ancienne adresse link-local ne suffit pas.
 
 ## Préparer une session dev (opérateur)
 

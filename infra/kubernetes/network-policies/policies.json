@@ -47,6 +47,18 @@
                 }
               },
               {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "kube-system"
+                  }
+                },
+                "podSelector": {
+                  "matchLabels": {
+                    "k8s-app": "node-local-dns"
+                  }
+                }
+              },
+              {
                 "ipBlock": {
                   "cidr": "169.254.20.10/32"
                 }

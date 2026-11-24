@@ -11,7 +11,7 @@ on:
         description: "Digest sha256 de l'image Utilisateurs à déployer (ou rétablir)"
         required: true
         type: string
-  # Temporary proof trigger; validates the final migration and rollback script.
+  # Temporary proof trigger; validates native NodeLocal DNS and the SQL proxy.
   push:
     branches: [codex/scrum-48-gke-deploy]
     paths: [.github/workflows/deploy-users.yml]
