@@ -74,8 +74,8 @@ def main():
         if completed.returncode:
             raise RuntimeError("Migration failed; the Deployment has not been changed")
         print("MIGRATION_JOB_OK " + job_name)
-        kubectl("apply", "-f", "-", document=documents)
         try:
+            kubectl("apply", "-f", "-", document=documents)
             kubectl("rollout", "status", "deployment/users", "--timeout=300s")
             smoke()
         except Exception:

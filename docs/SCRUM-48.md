@@ -106,6 +106,33 @@ en lecture au registre. Aucun changement SQL/réseau ni suppression n'est attend
 Initialiser ensuite dev, relire son plan complet et l'appliquer pour la session.
 Les deux nouveaux secrets doivent exister avant la création de leurs droits IAM.
 
+Exemple PowerShell pour une session économique (plans hors du dépôt) :
+
+```powershell
+terraform -chdir=infra/terraform/environments/persistent init
+terraform -chdir=infra/terraform/environments/persistent plan -out="$env:TEMP/bodyvision-persistent.tfplan"
+# Relire le plan avant la commande suivante.
+terraform -chdir=infra/terraform/environments/persistent apply "$env:TEMP/bodyvision-persistent.tfplan"
+
+$sessionFile = Join-Path $env:TEMP 'bodyvision-dev-session.tfvars.json'
+@{
+  project_id = 'bodyvision-509616'
+  region = 'europe-west9'
+  environment = 'dev'
+  node_locations = @('europe-west9-a')
+  gke_min_node_count = 1
+  gke_max_node_count = 1
+  master_authorized_networks = @()
+} | ConvertTo-Json | Set-Content -Encoding utf8 $sessionFile
+terraform -chdir=infra/terraform/environments/dev init
+terraform -chdir=infra/terraform/environments/dev plan -var-file="$sessionFile" -out="$env:TEMP/bodyvision-dev.tfplan"
+# Relire le plan avant la commande suivante.
+terraform -chdir=infra/terraform/environments/dev apply "$env:TEMP/bodyvision-dev.tfplan"
+```
+
+L'endpoint DNS protégé par IAM permet l'accès opérateur/CI avec cette liste de
+réseaux autorisés vide ; ne pas ouvrir l'endpoint IP à `0.0.0.0/0`.
+
 Utiliser un kubeconfig temporaire, puis installer les ressources d'opérateur :
 
 ```powershell
@@ -150,6 +177,18 @@ variables de session. Vérifier qu'il ne touche ni Cloud SQL, ni VPC, ni registr
 ni secrets durables. Arrêter ensuite SQL via gcloud et confirmer STOPPED / NEVER.
 Ne jamais détruire persistent pour arrêter GKE. Le stockage/sauvegardes SQL et les
 autres ressources durables restent facturables ; recontrôler VM et IP NAT allouées.
+
+```powershell
+terraform -chdir=infra/terraform/environments/dev plan -destroy -var-file="$sessionFile" -out="$env:TEMP/bodyvision-dev-destroy.tfplan"
+# Relire les suppressions dev avant la commande suivante.
+terraform -chdir=infra/terraform/environments/dev apply "$env:TEMP/bodyvision-dev-destroy.tfplan"
+terraform -chdir=infra/terraform/environments/dev state list
+gcloud container clusters list --project=bodyvision-509616
+gcloud compute instances list --project=bodyvision-509616
+gcloud compute routers get-nat-ip-info bodyvision-dev-router --project=bodyvision-509616 --region=europe-west9
+gcloud sql instances patch bodyvision-dev-postgres --project=bodyvision-509616 --activation-policy=NEVER --quiet
+gcloud sql instances describe bodyvision-dev-postgres --project=bodyvision-509616 --format="yaml(state,settings.activationPolicy)"
+```
 
 Pour la preuve de branche, autoriser temporairement sa ref exacte dans
 `gke_release_allowed_refs`, puis retirer cette autorisation et le déclencheur

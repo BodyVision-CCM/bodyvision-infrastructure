@@ -16,9 +16,11 @@ class DeploymentFailureTests(unittest.TestCase):
         self.release = json.dumps({"image": IMAGE + "@sha256:" + "c" * 64, "source_sha": "b" * 40})
         self.calls = []
 
-    def invoke(self, migration_fails=False, smoke_fails=False, previous=False):
+    def invoke(self, migration_fails=False, smoke_fails=False, previous=False, apply_fails=False):
         def fake(*args, document=None, check=True):
             self.calls.append((args, document))
+            if args[0] == "apply" and apply_fails:
+                raise subprocess.CalledProcessError(1, args, stderr="partial apply failed")
             stdout = ""
             if args[0] == "get" and previous:
                 stdout = json.dumps({"metadata": {"annotations": {"deployment.kubernetes.io/revision": "3"}}})
@@ -48,6 +50,11 @@ class DeploymentFailureTests(unittest.TestCase):
         self.assertEqual(pod["restartPolicy"], "Never")
         self.assertEqual(pod["initContainers"][0]["restartPolicy"], "Always")
         self.assertEqual(pod["containers"][0]["image"], IMAGE + "@sha256:" + "c" * 64)
+
+    def test_partial_apply_failure_restores_previous_deployment(self):
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.invoke(apply_fails=True, previous=True)
+        self.assertIn(("rollout", "undo", "deployment/users", "--to-revision=3"), [args for args, _ in self.calls])
 
 
 if __name__ == "__main__":
