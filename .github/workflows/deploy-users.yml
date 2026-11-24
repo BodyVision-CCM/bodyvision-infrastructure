@@ -11,7 +11,7 @@ on:
         description: "Digest sha256 de l'image Utilisateurs à déployer (ou rétablir)"
         required: true
         type: string
-  # Temporary proof trigger; removed after the branch has been validated.
+  # Temporary proof trigger; validates the annotated KSA/GSA secret access too.
   push:
     branches: [codex/scrum-48-gke-deploy]
     paths: [.github/workflows/deploy-users.yml]

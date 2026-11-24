@@ -1,7 +1,3 @@
-data "google_project" "this" {
-  project_id = var.project_id
-}
-
 # Secret contents and versions are provisioned outside Terraform and its state.
 resource "google_secret_manager_secret_iam_member" "users" {
   for_each = toset([
@@ -12,5 +8,6 @@ resource "google_secret_manager_secret_iam_member" "users" {
   project   = var.project_id
   secret_id = each.value
   role      = "roles/secretmanager.secretAccessor"
-  member    = "principal://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${module.gke.workload_identity_pool}/subject/ns/bodyvision/sa/users"
+  # The annotated KSA impersonates this GSA for both CSI and the SQL proxy.
+  member = "serviceAccount:${google_service_account.cloud_sql["users"].email}"
 }

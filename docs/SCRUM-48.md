@@ -74,7 +74,7 @@ artefact ; les anciens runs de build ne possèdent pas cet artefact.
   l'application et s'arrête quand le Job de migration termine. Il joint SQL en
   IP privée sur TCP 3307 avec TLS ; l'application utilise son loopback TCP 5432.
 - Le composant Secret Manager CSI géré est activé sur GKE. Le KSA `users` lit
-  uniquement ses trois secrets via Workload Identity ; les valeurs sont montées
+  uniquement ses trois secrets via le GSA SQL auquel il est lié par Workload Identity ; les valeurs sont montées
   en fichiers, sans Kubernetes Secret et sans passage dans le state Terraform.
   Le wrapper transmet les deux valeurs requises en environnement au processus
   applicatif et lui donne le chemin du PEM JWT.
