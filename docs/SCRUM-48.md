@@ -109,6 +109,7 @@ Les deux nouveaux secrets doivent exister avant la création de leurs droits IAM
 Utiliser un kubeconfig temporaire, puis installer les ressources d'opérateur :
 
 ```powershell
+# Prérequis local : gcloud components install gke-gcloud-auth-plugin
 $env:KUBECONFIG = Join-Path $env:TEMP 'bodyvision-scrum48-kubeconfig'
 gcloud container clusters get-credentials bodyvision-dev-gke --project=bodyvision-509616 --region=europe-west9 --dns-endpoint
 kubectl config current-context
