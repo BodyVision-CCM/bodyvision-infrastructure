@@ -10,8 +10,16 @@ L'instance et la base `bodyvision` appartiennent au state persistent. Les protec
 Terraform et API sont activées par défaut : une suppression de l'instance depuis
 le state persistent est bloquée tant que ces protections restent actives.
 Un destroy dev ne doit inclure ni la base ni son réseau durable.
+La base utilise `deletion_policy = "ABANDON"` : une fois cette valeur appliquée
+au state, son retrait du code oublie la base sans la supprimer par l'API.
 Les sauvegardes ne constituent pas une garantie de conservation après suppression.
 Conserver/exporter les données avant tout arrêt destructif.
+
+`activation_policy` ne s'applique qu'à la création (`NEVER` par défaut).
+`ignore_changes` préserve ensuite la politique choisie hors Terraform : démarrer
+et arrêter avec `gcloud sql instances patch --activation-policy=ALWAYS|NEVER`,
+puis vérifier avec `gcloud sql instances describe`. Le disque auto-extensible
+est plafonné à 20 Gio. Voir [la procédure SCRUM-49](../../../../docs/SCRUM-49.md).
 
 Aucun utilisateur ni mot de passe n'est géré ici. Le bootstrap SQL crée les rôles
 et schémas ; les secrets sont injectés hors Terraform pour éviter leur présence

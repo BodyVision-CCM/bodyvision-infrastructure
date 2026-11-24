@@ -10,11 +10,59 @@ toute application de cette nouvelle configuration ; ne pas recréer le VPC.
 Le bootstrap SQL est séparé de Terraform : aucune connexion SQL ni aucun mot
 de passe ne passe dans le state. L'environnement `prod` reste réservé.
 
-**Infrastructure et critères SQL validés le 20 novembre 2026.** PostgreSQL 16
-privé, protections et sauvegarde automatique contrôlés. Après interruption du
-test VM le 19/11, une validation sans VM par job Cloud Run privé temporaire a
-réussi : bootstrap rejoué, propriétaires et isolation vérifiés, Alembic appliqué
-deux fois avec succès puis révision courante lue. Le job a été supprimé.
+**Au 24 novembre 2026, SCRUM-49 reste « En cours ».** La validation Cloud Run
+du 20/11 prouve l'exécution sur une ancienne image, dont la tête Alembic est
+`0001`. Elle ne prouve pas la migration `0002_remplace_par.py`, présente dans
+le main Utilisateurs depuis `dbdc218` (17/11), ni la conformité au `verify.sql`
+d'infra-compose. PostgreSQL privé et une sauvegarde ont été contrôlés le 20/11 ;
+la définition de terminé reste à prouver avec l'image actuelle et le bootstrap
+corrigé. Les résultats historiques ci-dessous ne remplacent pas cette preuve.
+
+## Corrections du 24 novembre et ordre d'application
+
+Corrections de code, **sans apply depuis la branche de la PR #9** :
+
+- Base `bodyvision` : `deletion_policy = "ABANDON"` pour conserver la base lors
+  de son retrait de Terraform. Cette protection doit être enregistrée dans le
+  state par l'apply prévu après fusion ; le changement de code seul ne suffit pas.
+- Instance : `ignore_changes = [settings[0].activation_policy]` pour qu'un apply
+  `persistent` avec la valeur par défaut `NEVER` ne coupe pas une session active.
+- Disque : agrandissement automatique plafonné à 20 Gio.
+- Bootstrap : trois `REVOKE ... FROM PUBLIC` et deux `ALTER ROLE ... SET search_path`
+  alignés sur `postgres/init/00_roles_schemas.sh` d'infra-compose.
+
+Fusionner **#9 avant toute autre PR qui touche `persistent`**. Tant que #9 n'est
+pas fusionnée, aucun apply depuis un ancien main : la base déjà présente dans
+le state pourrait être supprimée avant que la protection de l'instance bloque.
+Après fusion, mettre à jour main, vérifier le projet et le backend, puis démarrer
+la base avec la commande de session ci-dessous. Depuis ce main, produire un
+plan complet (sans `-target`) et en coller la sortie dans SCRUM-49 :
+
+```powershell
+terraform -chdir=infra/terraform/environments/persistent init "-backend-config=backend.hcl"
+terraform -chdir=infra/terraform/environments/persistent plan "-out=scrum49-protections.tfplan"
+```
+
+Attendu : modifications sur place uniquement, aucune création, suppression ni
+recréation, aucune modification d'`activation_policy`. Arrêter si le plan diffère
+et résoudre l'écart avant application. Après relecture, appliquer ce plan depuis
+main, base démarrée, pour enregistrer `ABANDON` dans le state. Ne jamais publier
+le fichier de plan ni le state ; conserver uniquement une sortie sans secret.
+
+```powershell
+terraform -chdir=infra/terraform/environments/persistent apply scrum49-protections.tfplan
+terraform -chdir=infra/terraform/environments/persistent plan
+```
+
+Le dernier plan doit être sans changement. Aucun de ces résultats post-fusion
+n'est encore acquis par la correction de code.
+
+Contrôles locaux du 24/11 : `terraform validate` réussi pour le module Cloud SQL
+et la racine `persistent` ; 3 tests Cloud SQL et 9 tests `persistent` réussis avec
+provider Google simulé, dont la conservation d'`ALWAYS` lors d'un plan avec
+`NEVER` par défaut. Formatage récursif et `git diff --check` réussis. Aucun apply
+réel, bootstrap Cloud SQL, `verify.sql` ou nouvelle migration n'a été exécuté
+pour ces corrections.
 
 ## Précontrôle GCP du 19 novembre 2026
 
@@ -40,7 +88,7 @@ créés dans Secret Manager : `bv-dev-postgres-admin-password`,
 `bv-dev-utilisateurs-db-password`, `bv-dev-analytique-db-password`.
 Ce constat historique est remplacé par les preuves du 20/11 ci-dessous.
 
-### Preuves réelles du 20 novembre 2026 (sans VM)
+### Résultats historiques du 20 novembre 2026 (sans VM)
 
 Job Cloud Run `bv-scrum49-validation`, Direct VPC egress vers le VPC existant,
 TLS PostgreSQL, identité temporaire limitée aux trois secrets nommés ci-dessus.
@@ -57,6 +105,9 @@ Image Utilisateurs immuable :
 - `bv-scrum49-validation-tf66l` : `alembic upgrade head`, réussite.
 - `bv-scrum49-validation-h7rxk` : deuxième `alembic upgrade head`, réussite.
 - `bv-scrum49-validation-4k22t` : `alembic current`, révision `0001 (head)`, exit 0.
+  Il s'agit de la tête de cette ancienne image, pas de celle du main du service.
+- Les contrôles `ISOLATION_OK` ci-dessus ne couvraient pas le contrat complet
+  d'infra-compose : `verify.sql` reste à rejouer avec le bootstrap corrigé.
 - Une première tentative Alembic avait échoué avant migration (arguments CLI
   joints par PowerShell) ; relance avec arguments séparés réussie.
 
@@ -81,7 +132,9 @@ La base applicative reçoit deux rôles LOGIN et deux schémas :
 Ingestion n'écrit pas en base et n'a pas de rôle PostgreSQL.
 Le script [bootstrap_roles_schemas.sql](../infra/sql/bootstrap_roles_schemas.sql)
 crée uniquement les éléments absents et échoue si un schéma existant appartient
-à un autre rôle. Il ne supprime aucun objet et ne réinitialise aucun mot de passe.
+à un autre rôle. Il révoque les droits de `PUBLIC` sur les trois schémas et fixe
+le `search_path` de chaque rôle à son schéma, y compris lors d'une réexécution.
+Il ne supprime aucun objet et ne réinitialise aucun mot de passe.
 Le `GRANT ... TO CURRENT_USER` est nécessaire avant la création des schémas,
 car le compte `postgres` Cloud SQL n'est pas un vrai superutilisateur.
 
@@ -109,19 +162,42 @@ pour faciliter cette initialisation.
 
 ## Validation réelle avant clôture
 
-1. Relire les plans complets `persistent` et `dev` avec identité, projet et backends vérifiés ;
-   vérifier les créations, remplacements, protections et coûts avant application.
+1. Respecter l'ordre de fusion/application ci-dessus ; coller le plan complet
+   `persistent` depuis main et confirmer l'enregistrement d'`ABANDON` dans le state.
 2. Après application autorisée, vérifier PostgreSQL 16, région `europe-west9`,
    absence d'IP publique, réseau privé et sauvegardes activées.
 3. Exécuter le bootstrap deux fois : les deux passages doivent réussir et
    afficher les propriétaires attendus.
-4. Tester une connexion comme chaque rôle. Vérifier l'isolation entre schémas
-   et l'absence de droits administratifs ou d'accès applicatif inutile.
-5. Depuis le service Utilisateurs, avec son secret injecté et la connectivité
-   privée, exécuter `alembic upgrade head`. Consigner le commit du service,
-   la révision Alembic et le résultat, sans chaîne de connexion sensible.
+4. Depuis le même accès privé et avec la connexion administrative, exécuter le
+   [postgres/verify.sql d'infra-compose](https://github.com/BodyVision-CCM/bodyvision-infra-compose/blob/master/postgres/verify.sql)
+   sur `bodyvision`, en précisant les variables psql :
+
+   ```text
+   psql -X -v ON_ERROR_STOP=1 -v auth_user=bv_utilisateurs -v ana_user=bv_analytique -d bodyvision -f <chemin-infra-compose>/postgres/verify.sql
+   ```
+
+   Attendre un code 0 et les notices de conformité des deux rôles (propriétaire,
+   droits, `search_path`, étanchéité), puis « 2 rôle(s) et schéma(s) conformes ».
+   Coller la sortie réelle ; tester aussi une connexion comme chaque rôle.
+5. Déclencher manuellement `Images Docker (SCRUM-43)` sur **main d'Infrastructure**
+   selon [SCRUM-43](SCRUM-43.md). Il construit, scanne et publie le main actuel
+   d'Utilisateurs. Relever le SHA source complet (`dbdc218` ou un descendant) et
+   le digest publié ; vérifier que l'image contient `0002_remplace_par.py`.
+   Avec cette image épinglée par digest dans le job privé temporaire, le secret
+   Utilisateurs injecté et la connectivité privée, lancer `alembic upgrade head`,
+   puis `alembic current`. Attendu pour ce main : **`0002 (head)`**. Si le main
+   a avancé, vérifier sa tête dans les sources et l'image avant de conclure.
 6. Vérifier une sauvegarde réussie et documenter la procédure de restauration.
 7. Consigner les ressources encore présentes et leur facturation après le test.
+   Supprimer le job, l'identité et ses accès temporaires aux secrets ; arrêter
+   SQL et contrôler `STOPPED` / `NEVER` avec `describe` comme ci-dessous.
+
+Dans [SCRUM-49](https://bodyvision.atlassian.net/browse/SCRUM-49), consigner le SHA
+source et le digest complets, les sorties `alembic upgrade head` / `alembic current`,
+la sortie et le code de retour de `verify.sql`, ainsi que le plan post-fusion
+et le contrôle d'arrêt. Ne jamais inclure de chaîne de connexion ou de secret.
+Ces résultats restent à produire à la prochaine session ; ne pas clôturer le
+ticket sur la seule preuve `0001` du 20/11.
 
 Les Network Policies doivent autoriser précisément le chemin choisi : une
 connexion directe et un proxy Cloud SQL n'utilisent pas nécessairement le même
@@ -129,6 +205,27 @@ port sortant. Une authentification IAM au proxy ne remplace pas l'authentificati
 PostgreSQL du rôle applicatif.
 
 ## Cycle de vie et diagnostic
+
+### Démarrage et arrêt de session
+
+`NEVER` reste la valeur de création. Ensuite, Terraform ignore les changements
+d'`activation_policy` : les sessions passent exclusivement par `gcloud`, sans
+apply de `persistent` ni surcharge `-var cloud_sql_activation_policy=ALWAYS`.
+
+```powershell
+# Début de session ; attendre la fin de l'opération avant de lancer les tests.
+gcloud sql instances patch bodyvision-dev-postgres --project=bodyvision-509616 --activation-policy=ALWAYS --quiet
+gcloud sql instances describe bodyvision-dev-postgres --project=bodyvision-509616 --format="yaml(state,settings.activationPolicy)"
+
+# Fin de session, y compris après un échec des tests.
+gcloud sql instances patch bodyvision-dev-postgres --project=bodyvision-509616 --activation-policy=NEVER --quiet
+gcloud sql instances describe bodyvision-dev-postgres --project=bodyvision-509616 --format="yaml(state,settings.activationPolicy)"
+```
+
+Attendu après démarrage : `RUNNABLE` / `ALWAYS`. En fin de session : `STOPPED` /
+`NEVER`. Coller le dernier `describe` ; si l'état est encore transitoire, attendre
+la fin de l'opération et le relire avant de conclure que le calcul est arrêté.
+Ne pas utiliser un apply ou un destroy pour arrêter la base.
 
 ### Budget au repos (catalogue Google du 19 novembre 2026, USD hors taxes)
 
@@ -149,12 +246,13 @@ Sources : [Cloud SQL](https://cloud.google.com/sql/pricing),
 [catalogue SSD](https://cloud.google.com/skus/?currency=USD&filter=FD0E-C4E1-E4A5),
 [Cloud NAT](https://cloud.google.com/nat/pricing).
 
-Contrainte budgétaire Master 2 : le calcul Cloud SQL est arrêté par défaut
-(`activation_policy = "NEVER"`). Passer à `ALWAYS` seulement pour une session
-de validation, puis revenir à `NEVER`. L'arrêt conserve les données mais le
+Contrainte budgétaire Master 2 : Cloud SQL est créé avec `activation_policy = "NEVER"`.
+Utiliser les commandes `gcloud` ci-dessus pour chaque session, puis confirmer
+l'arrêt. L'arrêt conserve les données mais le
 stockage et les sauvegardes restent facturables. Le 19 novembre 2026, les 12
 ressources ont été créées, dont PostgreSQL privé à `10.218.0.3` et la base
-`bodyvision`. Les rôles, schémas et migrations ont été vérifiés le 20/11.
+`bodyvision`. Les vérifications du 20/11 restent limitées à l'ancienne image ;
+la migration `0002` et le `verify.sql` restent à prouver.
 
 Cloud SQL, ses disques et sauvegardes peuvent rester facturés indépendamment de
 l'activité de GKE. Relire le plan de destruction et les protections avant tout

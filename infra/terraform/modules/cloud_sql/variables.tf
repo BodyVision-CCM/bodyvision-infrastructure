@@ -3,7 +3,7 @@ variable "project_id" {
   type        = string
 }
 variable "activation_policy" {
-  description = "NEVER arrête le calcul hors session de cours tout en conservant les données. ALWAYS démarre l'instance."
+  description = "Politique à la création uniquement (NEVER par défaut). Ensuite, démarrer/arrêter avec gcloud sql instances patch --activation-policy."
   type        = string
   default     = "NEVER"
   validation {

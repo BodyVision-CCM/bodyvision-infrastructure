@@ -28,6 +28,7 @@ resource "google_sql_database_instance" "this" {
   database_version    = "POSTGRES_16"
   deletion_protection = var.deletion_protection
   settings {
+    # Session start/stop is managed with gcloud, independently of persistent applies.
     activation_policy           = var.activation_policy
     tier                        = "db-custom-1-3840"
     edition                     = "ENTERPRISE"
@@ -35,6 +36,7 @@ resource "google_sql_database_instance" "this" {
     disk_type                   = "PD_SSD"
     disk_size                   = 10
     disk_autoresize             = true
+    disk_autoresize_limit       = 20
     deletion_protection_enabled = var.deletion_protection
     ip_configuration {
       ipv4_enabled       = false
@@ -53,6 +55,9 @@ resource "google_sql_database_instance" "this" {
       }
     }
   }
+  lifecycle {
+    ignore_changes = [settings[0].activation_policy]
+  }
   depends_on = [google_service_networking_connection.private_services]
 }
 
@@ -60,4 +65,6 @@ resource "google_sql_database" "bodyvision" {
   project  = var.project_id
   instance = google_sql_database_instance.this.name
   name     = "bodyvision"
+  # Persisted in state: removing this resource must only forget the database.
+  deletion_policy = "ABANDON"
 }

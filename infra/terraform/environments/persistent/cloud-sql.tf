@@ -24,7 +24,7 @@ module "cloud_sql" {
 }
 
 variable "cloud_sql_activation_policy" {
-  description = "ALWAYS pendant une session ; NEVER conserve les données en arrêtant le calcul hors session"
+  description = "Politique à la création uniquement (NEVER par défaut). Les sessions sont pilotées par gcloud sql instances patch --activation-policy."
   type        = string
   default     = "NEVER"
   validation {

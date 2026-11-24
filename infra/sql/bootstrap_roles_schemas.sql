@@ -1,6 +1,7 @@
 \set ON_ERROR_STOP on
 -- Execute as the Cloud SQL administrative role against the application database.
 -- Passwords are deliberately absent. Set them interactively with psql \password.
+-- Aligned with bodyvision-infra-compose postgres/init/00_roles_schemas.sh (SCRUM-112).
 BEGIN;
 DO $bootstrap$
 BEGIN
@@ -31,6 +32,14 @@ BEGIN
   END IF;
 END
 $verify$;
+
+-- Only schema owners have access; PostgreSQL 15+ grants PUBLIC usage on public.
+REVOKE ALL ON SCHEMA utilisateurs FROM PUBLIC;
+REVOKE ALL ON SCHEMA analytique FROM PUBLIC;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+
+ALTER ROLE bv_utilisateurs SET search_path = utilisateurs;
+ALTER ROLE bv_analytique SET search_path = analytique;
 COMMIT;
 
 SELECT n.nspname AS schema, r.rolname AS owner
