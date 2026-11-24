@@ -46,6 +46,10 @@ resource "google_container_cluster" "this" {
     workload_pool = "${var.project_id}.svc.id.goog"
   }
 
+  secret_manager_config {
+    enabled = true
+  }
+
   release_channel {
     channel = "REGULAR"
   }

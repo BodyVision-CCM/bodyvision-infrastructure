@@ -67,8 +67,8 @@ interdit `hostNetwork`. Vérifier les flux de collecte avec les vrais collecteur
 
 ## Cloud SQL et persistance
 
-Cloud SQL persistant est retenu dans la review SCRUM-25. Son IP privée n'est pas
-encore provisionnée : la base n'autorise volontairement aucun CIDR SQL inventé.
+Cloud SQL est provisionné par SCRUM-49. L'overlay `../overlays/dev` autorise
+son IP privée réelle `10.218.0.3/32` sur TCP 3307 pour le proxy Cloud SQL.
 
 Dans SCRUM-49, préparer un réseau durable pour la connexion privée et ajouter
 une règle Egress vers l'IP privée **/32** aux seuls Pods `users`,
@@ -81,7 +81,7 @@ déjà permis. Le compte IAM et les rôles SQL restent propres à chaque service
 
 Les données Cloud SQL, le bucket brut et les messages RabbitMQ ne doivent pas
 être perdus lors d'un destroy dev : préciser leur sauvegarde et cycle de vie
-dans SCRUM-49/50/100. Le réseau dev actuel est éphémère.
+dans SCRUM-49/50/100. Le VPC et SQL appartiennent au state durable `persistent`.
 
 ## Déploiement et validation
 

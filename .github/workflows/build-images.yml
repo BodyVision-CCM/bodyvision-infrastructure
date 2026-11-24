@@ -146,3 +146,19 @@ jobs:
           severity: CRITICAL
           exit-code: '1'
           ignore-unfixed: false
+
+      - name: Record the scanned release for GKE
+        env:
+          PUBLISHED_IMAGE: ${{ steps.publish.outputs.image }}
+        shell: python
+        run: |
+          import json, os
+          with open('users-release.json', 'w') as f:
+              json.dump({'image': os.environ['PUBLISHED_IMAGE'], 'source_sha': os.environ['SOURCE_SHA'], 'infrastructure_sha': os.environ['GITHUB_SHA'], 'run_id': int(os.environ['GITHUB_RUN_ID'])}, f)
+      - name: Publish the release manifest after both scans
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: users-release
+          path: users-release.json
+          retention-days: 90
+          if-no-files-found: error

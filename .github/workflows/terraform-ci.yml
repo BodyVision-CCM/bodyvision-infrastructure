@@ -35,6 +35,12 @@ jobs:
         run: kubectl kustomize infra/kubernetes/network-policies > "$RUNNER_TEMP/bodyvision-network-policies.yaml"
       - name: Build dev Cloud SQL overlay
         run: kubectl kustomize infra/kubernetes/overlays/dev > "$RUNNER_TEMP/bodyvision-dev-network-policies.yaml"
+      - name: Build deployment and operator bootstrap
+        run: |
+          kubectl kustomize infra/kubernetes/users > "$RUNNER_TEMP/bodyvision-users.yaml"
+          kubectl kustomize infra/kubernetes/bootstrap-dev > "$RUNNER_TEMP/bodyvision-bootstrap.yaml"
+      - name: Test release trust, rollout and migration contracts
+        run: python -m unittest discover -s tests -v
 
   format:
     name: Check Terraform formatting
