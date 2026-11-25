@@ -39,6 +39,17 @@ class ReleaseTrustTests(unittest.TestCase):
 
 
 class KubernetesContractTests(unittest.TestCase):
+    def test_namespace_enforces_restricted_pods(self):
+        namespace = Path("infra/kubernetes/network-policies/namespace.yaml").read_text()
+        self.assertIn("    pod-security.kubernetes.io/enforce: restricted", namespace.splitlines())
+        pod = json.loads(Path("infra/kubernetes/users/users.json").read_text())["items"][0]["spec"]["template"]["spec"]
+        self.assertTrue(pod["securityContext"]["runAsNonRoot"])
+        self.assertEqual(pod["securityContext"]["seccompProfile"]["type"], "RuntimeDefault")
+        for container in pod["containers"] + pod["initContainers"]:
+            self.assertFalse(container["securityContext"]["allowPrivilegeEscalation"])
+            self.assertIn("ALL", container["securityContext"]["capabilities"]["drop"])
+
+
     def test_native_sidecar_secrets_probes_and_no_public_service(self):
         resources = json.loads(Path("infra/kubernetes/users/users.json").read_text())["items"]
         pod = resources[0]["spec"]["template"]["spec"]

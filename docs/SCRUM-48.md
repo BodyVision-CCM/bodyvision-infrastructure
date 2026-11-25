@@ -67,7 +67,9 @@ artefact ; les anciens runs de build ne possèdent pas cet artefact.
   connexion/lecture du cluster et la lecture du registre. Les écritures passent
   par le Role Kubernetes du seul namespace `bodyvision`.
 - La CI ne crée ni namespace, ni Role/RoleBinding, ni compte de service ; elle
-  ne lit pas les Secrets Kubernetes et n'a pas de permission `pods/exec`.
+  n'a pas de permission `pods/exec`. Elle n'a aucun droit sur les Secrets Kubernetes,
+  mais peut lancer des Pods avec le KSA users ; la frontière de confiance est le
+  main d'Infrastructure. Elle peut donc lire les secrets CSI montés dans ces Pods.
   Le bootstrap de ces ressources se fait une fois par session, par l'opérateur.
 - Le KSA `users` utilise le GSA SQL préparé par SCRUM-49. Le proxy Cloud SQL
   officiel 2.28.1, épinglé par digest, est un sidecar natif : il démarre avant
@@ -257,3 +259,19 @@ pool, aucune VM ni IP NAT allouée ; SQL confirmé **STOPPED / NEVER** par descr
 Le dernier plan persistent, réalisé avant l'arrêt SQL, indiquait **No changes**.
 Le résultat du destroy et l'état final du cluster sont consignés dans
 [SCRUM-48](https://bodyvision.atlassian.net/browse/SCRUM-48?focusedCommentId=10432).
+
+## Conditions après revue de la PR #10
+
+Fusionner avant tout nouvel apply persistent depuis main. Après fusion, lancer
+un plan persistent depuis main (attendu : **No changes**), puis un run depuis
+main pendant la prochaine session et consigner ses preuves ici. La sortie
+`alembic current` doit montrer la révision `0002` attendue pour SCRUM-49 ;
+`MIGRATION_JOB_OK` seul ne prouve pas cette révision.
+
+SCRUM-42 ne bloque pas la fusion de #10. SCRUM-48 reste ouvert et aucune démo
+ne doit utiliser ce déploiement tant que les tests Utilisateurs (`make test`)
+ne tournent pas en CI.
+
+Limites à traiter ensuite : le mode manuel accepte encore un digest ayant
+échoué au second scan Trivy. Le rollback ne restaure pas le schéma : réaliser
+les migrations en deux temps, ajout puis retrait une version plus tard.

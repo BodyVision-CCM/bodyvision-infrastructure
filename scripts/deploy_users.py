@@ -61,7 +61,7 @@ def main():
                     "template": copy.deepcopy(template)}}
     job["spec"]["template"]["spec"]["restartPolicy"] = "Never"
     migration = job["spec"]["template"]["spec"]["containers"][0]
-    migration["args"][3:] = ["alembic", "upgrade", "head"]
+    migration["args"][3:] = ["sh", "-ec", "alembic upgrade head && alembic current"]
     for field in ("startupProbe", "readinessProbe", "livenessProbe", "ports"):
         migration.pop(field, None)
     previous = kubectl("get", "deployment/users", "--ignore-not-found", "-o", "json").stdout

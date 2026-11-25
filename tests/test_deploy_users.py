@@ -46,7 +46,7 @@ class DeploymentFailureTests(unittest.TestCase):
         self.invoke()
         job = next(document for args, document in self.calls if args[0] == "create")
         pod = job["spec"]["template"]["spec"]
-        self.assertEqual(pod["containers"][0]["args"][3:], ["alembic", "upgrade", "head"])
+        self.assertEqual(pod["containers"][0]["args"][3:], ["sh", "-ec", "alembic upgrade head && alembic current"])
         self.assertEqual(pod["restartPolicy"], "Never")
         self.assertEqual(pod["initContainers"][0]["restartPolicy"], "Always")
         self.assertEqual(pod["containers"][0]["image"], IMAGE + "@sha256:" + "c" * 64)
