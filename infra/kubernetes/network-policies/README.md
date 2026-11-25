@@ -5,7 +5,7 @@ GKE utilise Dataplane V2 pour appliquer les politiques de ce dossier. Le namespa
 ci-dessous sont autorisées. Les politiques sont déployées séparément du socle
 Terraform, lors du déploiement des workloads (SCRUM-48/66).
 
-Aucun cluster, Pod ou politique n'a été déployé par l'ajout de ces fichiers.
+Cette base est installée par le bootstrap de session SCRUM-48 avant les workloads.
 Dataplane V2 seul n'isole pas les Pods : le déploiement de cette base est requis.
 
 ## Contrat de déploiement
@@ -46,6 +46,9 @@ Si son nom est changé dans SCRUM-102, adapter la politique avant installation.
 | Applications et observability | Destinations externes, TCP 443 | API GCP/Cloud SQL Connectors |
 
 Les sélecteurs de Pods sans sélecteur de namespace sont limités à `bodyvision`.
+DNS autorise `kube-dns` et `node-local-dns` dans `kube-system`, ainsi que
+`169.254.20.10/32`, sur UDP/TCP 53. Sur GKE 1.36 / Dataplane V2, le cache local
+peut utiliser une IP de Pod : le seul CIDR link-local ne suffit pas.
 La règle KEDA combine namespace **et** label du Pod. Aucun accès entrant public
 `0.0.0.0/0`, aucun accès direct Ingestion → Analytique API, et aucun accès des API
 au broker en dehors des clients déclarés ne sont autorisés.
@@ -67,21 +70,20 @@ interdit `hostNetwork`. Vérifier les flux de collecte avec les vrais collecteur
 
 ## Cloud SQL et persistance
 
-Cloud SQL persistant est retenu dans la review SCRUM-25. Son IP privée n'est pas
-encore provisionnée : la base n'autorise volontairement aucun CIDR SQL inventé.
+Cloud SQL est provisionné par SCRUM-49. L'overlay `../overlays/dev` autorise
+son IP privée réelle `10.218.0.3/32` sur TCP 3307 pour le proxy Cloud SQL.
 
-Dans SCRUM-49, préparer un réseau durable pour la connexion privée et ajouter
-une règle Egress vers l'IP privée **/32** aux seuls Pods `users`,
-`analytics-api` et `analytics-worker`. L'exemple
-`examples/cloud-sql-egress.yaml.example` n'est pas inclus dans Kustomize.
-Renseigner l'IP réelle et ajouter le fichier complété à un overlay avant de
-déployer les API. Garder TCP 3307 pour Auth Proxy/Connectors, ou TCP 5432 pour un
-accès PostgreSQL direct avec TLS, selon le mode retenu. Le HTTPS des API GCP est
-déjà permis. Le compte IAM et les rôles SQL restent propres à chaque service.
+Le bootstrap [SCRUM-48](../../../docs/SCRUM-48.md) applique cet overlay avant
+les workloads. Il autorise uniquement `users`, `analytics-api` et
+`analytics-worker` vers cette IP **/32**. L'exemple
+`examples/cloud-sql-egress.yaml.example` reste hors Kustomize. Pour un autre
+projet, remplacer l'IP par celle réellement provisionnée et conserver TCP 3307
+pour Auth Proxy/Connectors (5432 uniquement pour une connexion directe avec TLS).
+Le HTTPS des API GCP est déjà permis. Chaque service garde son identité et son rôle SQL.
 
 Les données Cloud SQL, le bucket brut et les messages RabbitMQ ne doivent pas
 être perdus lors d'un destroy dev : préciser leur sauvegarde et cycle de vie
-dans SCRUM-49/50/100. Le réseau dev actuel est éphémère.
+dans SCRUM-49/50/100. Le VPC et SQL appartiennent au state durable `persistent`.
 
 ## Déploiement et validation
 

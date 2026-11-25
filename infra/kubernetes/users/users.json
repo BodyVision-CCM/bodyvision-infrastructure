@@ -1,0 +1,244 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "users",
+        "namespace": "bodyvision",
+        "labels": {
+          "app.kubernetes.io/name": "users"
+        }
+      },
+      "spec": {
+        "replicas": 1,
+        "revisionHistoryLimit": 3,
+        "progressDeadlineSeconds": 300,
+        "strategy": {
+          "type": "RollingUpdate",
+          "rollingUpdate": {
+            "maxSurge": 1,
+            "maxUnavailable": 0
+          }
+        },
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "users"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "users"
+            }
+          },
+          "spec": {
+            "serviceAccountName": "users",
+            "automountServiceAccountToken": false,
+            "terminationGracePeriodSeconds": 30,
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "fsGroup": 10001,
+              "seccompProfile": {
+                "type": "RuntimeDefault"
+              }
+            },
+            "nodeSelector": {
+              "iam.gke.io/gke-metadata-server-enabled": "true"
+            },
+            "initContainers": [
+              {
+                "name": "cloud-sql-proxy",
+                "image": "gcr.io/cloud-sql-connectors/cloud-sql-proxy@sha256:c01857183fd88d7f4366500f8f89e79206d5dba596d1b4eada8974082c162000",
+                "restartPolicy": "Always",
+                "args": [
+                  "--private-ip",
+                  "--structured-logs",
+                  "--port=5432",
+                  "--health-check",
+                  "--http-address=0.0.0.0",
+                  "--http-port=9801",
+                  "bodyvision-509616:europe-west9:bodyvision-dev-postgres"
+                ],
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  },
+                  "runAsNonRoot": true,
+                  "runAsUser": 65532
+                },
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "128Mi"
+                  },
+                  "limits": {
+                    "cpu": "500m",
+                    "memory": "256Mi"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/startup",
+                    "port": 9801
+                  },
+                  "periodSeconds": 2,
+                  "failureThreshold": 60
+                }
+              }
+            ],
+            "containers": [
+              {
+                "name": "users",
+                "image": "europe-west9-docker.pkg.dev/bodyvision-509616/bodyvision-dev-docker/user-service@sha256:96111f2269c53ea076855f65b139d0d44b77cefbab7a961fe0b3f89502937eb9",
+                "command": [
+                  "/bin/sh"
+                ],
+                "args": [
+                  "-ec",
+                  "export DB_PASSWORD=\"$(cat /var/secrets/db-password)\"\nexport INTERNAL_SERVICE_TOKEN=\"$(cat /var/secrets/internal-token)\"\nexec /app/entrypoint.sh \"$@\"",
+                  "--",
+                  "uvicorn",
+                  "app.main:app",
+                  "--host",
+                  "0.0.0.0",
+                  "--port",
+                  "8000",
+                  "--no-access-log"
+                ],
+                "env": [
+                  {
+                    "name": "DB_HOST",
+                    "value": "127.0.0.1"
+                  },
+                  {
+                    "name": "DB_NAME",
+                    "value": "bodyvision"
+                  },
+                  {
+                    "name": "DB_USER",
+                    "value": "bv_utilisateurs"
+                  },
+                  {
+                    "name": "RUN_MIGRATIONS",
+                    "value": "false"
+                  },
+                  {
+                    "name": "JWT_PRIVATE_KEY_FILE",
+                    "value": "/var/secrets/jwt-private.pem"
+                  },
+                  {
+                    "name": "JWT_AUTOGENERATE_KEYS",
+                    "value": "false"
+                  },
+                  {
+                    "name": "ENABLE_DOCS",
+                    "value": "false"
+                  }
+                ],
+                "ports": [
+                  {
+                    "name": "http",
+                    "containerPort": 8000
+                  }
+                ],
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  },
+                  "runAsNonRoot": true
+                },
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "256Mi"
+                  },
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "512Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "secrets",
+                    "mountPath": "/var/secrets",
+                    "readOnly": true
+                  }
+                ],
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/healthz",
+                    "port": "http"
+                  },
+                  "periodSeconds": 3,
+                  "failureThreshold": 40
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/healthz",
+                    "port": "http"
+                  },
+                  "periodSeconds": 10
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/readyz",
+                    "port": "http"
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "secrets",
+                "csi": {
+                  "driver": "secrets-store-gke.csi.k8s.io",
+                  "readOnly": true,
+                  "volumeAttributes": {
+                    "secretProviderClass": "users"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "users",
+        "namespace": "bodyvision",
+        "labels": {
+          "app.kubernetes.io/name": "users"
+        }
+      },
+      "spec": {
+        "type": "ClusterIP",
+        "selector": {
+          "app.kubernetes.io/name": "users"
+        },
+        "ports": [
+          {
+            "name": "http",
+            "port": 80,
+            "targetPort": "http"
+          }
+        ]
+      }
+    }
+  ]
+}

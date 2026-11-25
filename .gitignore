@@ -33,6 +33,10 @@ override.tf.json
 # example: *tfplan*
 *.tfplan
 planout
+.release.json
+.release-run.json
+__pycache__/
+*.pyc
 
 # Ignore CLI configuration files
 .terraformrc

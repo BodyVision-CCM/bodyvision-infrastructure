@@ -1,0 +1,101 @@
+name: Deploy Users to GKE
+
+on:
+  workflow_run:
+    workflows: ["Images Docker (SCRUM-43)"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_digest:
+        description: "Digest sha256 de l'image Utilisateurs à déployer (ou rétablir)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gke-release-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Resolve a trusted release
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/release.py prepare
+      - name: Read the scanned image manifest from its build run
+        if: steps.release.outputs.mode == 'build'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: users-release
+          run-id: ${{ steps.release.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: release
+      - name: Authenticate the deployment identity
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: bodyvision-509616
+          workload_identity_provider: projects/669761732802/locations/global/workloadIdentityPools/bodyvision-dev-github/providers/gke-release
+          service_account: bv-dev-gke-release@bodyvision-509616.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          install_components: kubectl,gke-gcloud-auth-plugin
+      - name: Check whether the dev session is running
+        id: session
+        shell: python
+        run: |
+          import json, os, subprocess
+          result = subprocess.run(['gcloud', 'container', 'clusters', 'describe', 'bodyvision-dev-gke', '--project=bodyvision-509616', '--region=europe-west9', '--format=json'], capture_output=True, text=True)
+          if result.returncode:
+              if os.environ['GITHUB_EVENT_NAME'] == 'workflow_run' and 'NOT_FOUND' in result.stderr:
+                  with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+                      f.write('Dev est éteint : image publiée, déploiement différé. Relancer manuellement avec le digest pendant une session.\n')
+                  with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                      f.write('ready=false\n')
+              else:
+                  raise RuntimeError(result.stderr)
+          else:
+              assert json.loads(result.stdout)['status'] == 'RUNNING', 'GKE is not ready'
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write('ready=true\n')
+      - name: Verify the image and its source labels
+        if: steps.session.outputs.ready == 'true'
+        run: |
+          gcloud auth configure-docker europe-west9-docker.pkg.dev --quiet
+          python scripts/release.py verify
+      - name: Connect through the GKE DNS endpoint
+        if: steps.session.outputs.ready == 'true'
+        uses: google-github-actions/get-gke-credentials@3da1e46a907576cefaa90c484278bb5b259dd395 # v3
+        with:
+          project_id: bodyvision-509616
+          cluster_name: bodyvision-dev-gke
+          location: europe-west9
+          use_dns_based_endpoint: true
+      - name: Migrate, deploy and test Users
+        if: steps.session.outputs.ready == 'true'
+        run: |
+          test "$(kubectl auth can-i create deployments -n bodyvision)" = yes
+          denied() {
+            decision="$(kubectl auth can-i "$@" || true)"
+            printf 'RBAC %s: %s\n' "$*" "$decision"
+            [[ "$decision" == no || "$decision" == 'no - '* ]]
+          }
+          denied get secrets -n bodyvision
+          denied create rolebindings -n bodyvision
+          denied create deployments -n default
+          python scripts/deploy_users.py

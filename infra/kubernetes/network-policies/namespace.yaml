@@ -4,3 +4,4 @@ metadata:
   name: bodyvision
   labels:
     app.kubernetes.io/part-of: bodyvision
+    pod-security.kubernetes.io/enforce: restricted

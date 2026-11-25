@@ -1,0 +1,146 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "ServiceAccount",
+      "metadata": {
+        "name": "users",
+        "namespace": "bodyvision",
+        "annotations": {
+          "iam.gke.io/gcp-service-account": "bv-dev-users-sql@bodyvision-509616.iam.gserviceaccount.com"
+        }
+      },
+      "automountServiceAccountToken": false
+    },
+    {
+      "apiVersion": "secrets-store.csi.x-k8s.io/v1",
+      "kind": "SecretProviderClass",
+      "metadata": {
+        "name": "users",
+        "namespace": "bodyvision"
+      },
+      "spec": {
+        "provider": "gke",
+        "parameters": {
+          "secrets": "- resourceName: \"projects/bodyvision-509616/secrets/bv-dev-utilisateurs-db-password/versions/1\"\n  path: \"db-password\"\n- resourceName: \"projects/bodyvision-509616/secrets/bv-dev-users-internal-token/versions/1\"\n  path: \"internal-token\"\n- resourceName: \"projects/bodyvision-509616/secrets/bv-dev-users-jwt-private-key/versions/1\"\n  path: \"jwt-private.pem\"\n"
+        }
+      }
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "Role",
+      "metadata": {
+        "name": "gke-release",
+        "namespace": "bodyvision"
+      },
+      "rules": [
+        {
+          "apiGroups": [
+            "apps"
+          ],
+          "resources": [
+            "deployments"
+          ],
+          "verbs": [
+            "get",
+            "list",
+            "watch",
+            "create",
+            "update",
+            "patch"
+          ]
+        },
+        {
+          "apiGroups": [
+            "apps"
+          ],
+          "resources": [
+            "replicasets"
+          ],
+          "verbs": [
+            "get",
+            "list",
+            "watch"
+          ]
+        },
+        {
+          "apiGroups": [
+            ""
+          ],
+          "resources": [
+            "services"
+          ],
+          "verbs": [
+            "get",
+            "list",
+            "create",
+            "update",
+            "patch"
+          ]
+        },
+        {
+          "apiGroups": [
+            ""
+          ],
+          "resources": [
+            "pods",
+            "pods/log"
+          ],
+          "verbs": [
+            "get",
+            "list",
+            "watch"
+          ]
+        },
+        {
+          "apiGroups": [
+            ""
+          ],
+          "resources": [
+            "pods/portforward"
+          ],
+          "verbs": [
+            "create"
+          ]
+        },
+        {
+          "apiGroups": [
+            "batch"
+          ],
+          "resources": [
+            "jobs"
+          ],
+          "verbs": [
+            "get",
+            "list",
+            "watch",
+            "create",
+            "delete"
+          ]
+        }
+      ]
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "RoleBinding",
+      "metadata": {
+        "name": "gke-release",
+        "namespace": "bodyvision"
+      },
+      "subjects": [
+        {
+          "kind": "User",
+          "name": "bv-dev-gke-release@bodyvision-509616.iam.gserviceaccount.com",
+          "apiGroup": "rbac.authorization.k8s.io"
+        }
+      ],
+      "roleRef": {
+        "kind": "Role",
+        "name": "gke-release",
+        "apiGroup": "rbac.authorization.k8s.io"
+      }
+    }
+  ]
+}
